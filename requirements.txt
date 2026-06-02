@@ -6,7 +6,6 @@ certifi==2026.5.20
 cffi==2.0.0
 charset-normalizer==3.4.7
 click==8.4.1
-colorama==0.4.6
 cryptography==48.0.0
 distro==1.9.0
 dnspython==2.8.0
@@ -51,7 +50,6 @@ pymongo==4.17.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-multipart==0.0.30
-pywin32==311
 PyYAML==6.0.3
 referencing==0.37.0
 requests==2.34.2
@@ -65,5 +63,4 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.7.0
 uvicorn==0.48.0
-watchfiles==1.2.0
 websockets==16.0
