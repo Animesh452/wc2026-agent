@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <title>MatchDay - World Cup 2026 AI Assistant</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0e1a;
+      color: #e0e6f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #111827;
+      border-bottom: 1px solid #1e3a5f;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header .logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    header .subtitle {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .app {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #111827;
+      border-right: 1px solid #1e3a5f;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    .sidebar h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    .user-section input {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #e0e6f0;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .user-section input:focus {
+      border-color: #38bdf8;
+    }
+
+    .team-list, .reminder-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .team-pill {
+      background: #1e3a5f;
+      color: #38bdf8;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 13px;
+      display: inline-block;
+    }
+
+    .reminder-item {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #94a3b8;
+      border-left: 3px solid #38bdf8;
+    }
+
+    .reminder-item strong {
+      color: #e0e6f0;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .empty-state {
+      font-size: 12px;
+      color: #475569;
+      font-style: italic;
+    }
+
+    .refresh-btn {
+      background: none;
+      border: 1px solid #1e3a5f;
+      color: #64748b;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .refresh-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .message.user { align-self: flex-end; align-items: flex-end; }
+    .message.assistant { align-self: flex-start; align-items: flex-start; }
+
+    .message .label {
+      font-size: 11px;
+      color: #475569;
+      padding: 0 4px;
+    }
+
+    .message .bubble {
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 100%;
+    }
+
+    .message.user .bubble {
+      background: #1e3a5f;
+      color: #e0e6f0;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant .bubble {
+      background: #111827;
+      border: 1px solid #1e3a5f;
+      color: #e0e6f0;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.assistant .bubble ul,
+    .message.assistant .bubble ol {
+      padding-left: 20px;
+    }
+
+    .message.assistant .bubble.thinking {
+      color: #475569;
+      font-style: italic;
+    }
+
+    .input-area {
+      padding: 16px 24px;
+      background: #111827;
+      border-top: 1px solid #1e3a5f;
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-area input {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #1e3a5f;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #e0e6f0;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .input-area input:focus { border-color: #38bdf8; }
+
+    .input-area input::placeholder { color: #475569; }
+
+    .send-btn {
+      background: #38bdf8;
+      color: #0a0e1a;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .send-btn:hover { background: #7dd3fc; }
+    .send-btn:disabled { background: #1e3a5f; color: #475569; cursor: not-allowed; }
+
+    .suggestions {
+      display: flex;
+      gap: 8px;
+      padding: 0 24px 12px;
+      flex-wrap: wrap;
+    }
+
+    .suggestion {
+      background: #111827;
+      border: 1px solid #1e3a5f;
+      color: #94a3b8;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .suggestion:hover { border-color: #38bdf8; color: #38bdf8; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">MatchDay</div>
+    <div class="subtitle">World Cup 2026 AI Assistant</div>
+  </div>
+</header>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="user-section">
+      <h3>Your ID</h3>
+      <input type="text" id="userId" value="fan_001" placeholder="Enter your user ID" />
+    </div>
+
+    <div>
+      <h3>Following</h3>
+      <div class="team-list" id="teamList">
+        <span class="empty-state">No teams yet</span>
+      </div>
+      <button class="refresh-btn" onclick="loadSidebar()">Refresh</button>
+    </div>
+
+    <div>
+      <h3>Reminders</h3>
+      <div class="reminder-list" id="reminderList">
+        <span class="empty-state">No reminders set</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="message assistant">
+        <span class="label">MatchDay</span>
+        <div class="bubble">
+          Hey! I'm MatchDay, your World Cup 2026 AI companion. I can help you track teams, check match schedules, set reminders, and explore host city venues. What would you like to know?
+        </div>
+      </div>
+    </div>
+
+    <div class="suggestions">
+      <span class="suggestion" onclick="sendSuggestion(this)">Follow Brazil</span>
+      <span class="suggestion" onclick="sendSuggestion(this)">Upcoming matches this week</span>
+      <span class="suggestion" onclick="sendSuggestion(this)">Fan zone in Miami</span>
+      <span class="suggestion" onclick="sendSuggestion(this)">Remind me before Argentina's next match</span>
+      <span class="suggestion" onclick="sendSuggestion(this)">Group A standings</span>
+      <span class="suggestion" onclick="sendSuggestion(this)">Getting to AT&T Stadium Dallas</span>
+    </div>
+
+    <div class="input-area">
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Ask about teams, matches, venues..."
+        onkeydown="if(event.key==='Enter') sendMessage()"
+      />
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+
+  function getUserId() {
+    return document.getElementById('userId').value.trim() || 'fan_001';
+  }
+
+  function addMessage(role, text, thinking = false) {
+    const messages = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    div.innerHTML = `
+      <span class="label">${role === 'user' ? 'You' : 'MatchDay'}</span>
+      <div class="bubble ${thinking ? 'thinking' : ''}">${text}</div>
+    `;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const btn = document.getElementById('sendBtn');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+    btn.disabled = true;
+    addMessage('user', message);
+
+    const thinking = addMessage('assistant', 'Thinking...', true);
+
+    try {
+      const res = await fetch(`${API}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: getUserId(), message })
+      });
+      const data = await res.json();
+      thinking.querySelector('.bubble').className = 'bubble';
+      thinking.querySelector('.bubble').innerHTML = marked.parse(data.response);
+    } catch (e) {
+      thinking.querySelector('.bubble').textContent = 'Something went wrong. Please try again.';
+    }
+
+    btn.disabled = false;
+    input.focus();
+    loadSidebar();
+  }
+
+  function sendSuggestion(el) {
+    document.getElementById('messageInput').value = el.textContent;
+    sendMessage();
+  }
+
+  async function loadSidebar() {
+    const userId = getUserId();
+
+    try {
+      const teamsRes = await fetch(`${API}/user/${userId}/teams`);
+      const teamsData = await teamsRes.json();
+      const teamList = document.getElementById('teamList');
+      const teams = teamsData.followed_teams || [];
+      teamList.innerHTML = teams.length
+        ? teams.map(t => `<span class="team-pill">${t}</span>`).join('')
+        : '<span class="empty-state">No teams yet</span>';
+    } catch (e) {}
+
+    try {
+      const remRes = await fetch(`${API}/user/${userId}/reminders`);
+      const remData = await remRes.json();
+      const remList = document.getElementById('reminderList');
+      const reminders = remData.reminders || [];
+      const unique = reminders.filter((r, i, arr) =>
+        arr.findIndex(x => x.team === r.team && x.match_date === r.match_date) === i
+      );
+      remList.innerHTML = unique.length
+        ? unique.map(r => `
+            <div class="reminder-item">
+              <strong>${r.team}</strong>
+              ${r.match_date} · ${r.minutes_before}min before
+            </div>`).join('')
+        : '<span class="empty-state">No reminders set</span>';
+    } catch (e) {}
+  }
+
+  document.getElementById('userId').addEventListener('change', loadSidebar);
+  loadSidebar();
+</script>
+
+</body>
+</html>

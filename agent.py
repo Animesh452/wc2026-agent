@@ -8,6 +8,7 @@ from tools.mongodb_mcp import (
     follow_team, get_followed_teams,
     save_reminder, get_reminders
 )
+from tools.venues import search_venue_info
 from dotenv import load_dotenv
 import os, json
 
@@ -66,7 +67,7 @@ TOOL_DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="follow_team",
-        description="Save a team to the user's followed teams list. Use when user says they want to follow or track a team.",
+        description="Save a team to the user's followed teams list.",
         parameters={
             "type": "object",
             "properties": {
@@ -89,7 +90,7 @@ TOOL_DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="save_reminder",
-        description="Save a match reminder for a user. Use when user wants to be reminded before a match.",
+        description="Save a match reminder for a user.",
         parameters={
             "type": "object",
             "properties": {
@@ -112,17 +113,27 @@ TOOL_DECLARATIONS = [
             "required": ["user_id"]
         }
     ),
+    types.FunctionDeclaration(
+        name="search_venue_info",
+        description="Search for information about World Cup 2026 host city venues, fan zones, transport, and local tips.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query about a venue or host city"}
+            },
+            "required": ["query"]
+        }
+    ),
 ]
 
-# Sync tools execute locally
 SYNC_TOOLS = {
     "get_upcoming_matches": get_upcoming_matches,
     "get_recent_results": get_recent_results,
     "get_group_standings": get_group_standings,
     "get_team_info": get_team_info,
+    "search_venue_info": search_venue_info,
 }
 
-# Async tools go through MCP session
 ASYNC_TOOLS = {
     "follow_team": follow_team,
     "get_followed_teams": get_followed_teams,
@@ -132,21 +143,20 @@ ASYNC_TOOLS = {
 
 
 async def run_agent(user_message: str, mcp_session=None, user_id: str = "default_user"):
-    # Create config here so system instruction includes the actual user_id
     config = types.GenerateContentConfig(
         tools=[types.Tool(function_declarations=TOOL_DECLARATIONS)],
         system_instruction=(
             f"You are MatchDay, a World Cup 2026 AI assistant. "
             f"The current user's ID is '{user_id}'. "
             f"Always use this exact user_id when calling tools that require it. "
-            f"Never ask the user for their user_id."
+            f"Never ask the user for their user_id. "
+            f"Be concise and friendly in your responses."
         )
     )
 
     contents = [types.Content(role="user", parts=[types.Part(text=user_message)])]
 
     while True:
-        # Using async Gemini client since we're in async context
         response = await client.aio.models.generate_content(
             model="gemini-3.1-pro-preview",
             contents=contents,
