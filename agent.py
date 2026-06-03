@@ -2,7 +2,7 @@ from google import genai
 from google.genai import types
 from tools.espn import (
     get_upcoming_matches, get_recent_results,
-    get_group_standings, get_team_info
+    get_group_standings, get_team_info, get_team_schedule
 )
 from tools.mongodb_mcp import (
     follow_team, get_followed_teams,
@@ -124,6 +124,18 @@ TOOL_DECLARATIONS = [
             "required": ["query"]
         }
     ),
+    types.FunctionDeclaration(
+        name="get_team_schedule",
+        description="Get a team's full schedule with dates and venues, useful for trip planning. Returns matches over a longer time window.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "team": {"type": "string", "description": "Team name"},
+                "days": {"type": "integer", "description": "Days ahead to look (default 45 for full group stage)"}
+            },
+            "required": ["team"]
+        }
+    ),
 ]
 
 SYNC_TOOLS = {
@@ -132,6 +144,7 @@ SYNC_TOOLS = {
     "get_group_standings": get_group_standings,
     "get_team_info": get_team_info,
     "search_venue_info": search_venue_info,
+    "get_team_schedule": get_team_schedule,
 }
 
 ASYNC_TOOLS = {
@@ -157,7 +170,14 @@ async def run_agent(user_message: str, mcp_session=None, user_id: str = "default
                 f"You have memory of this conversation — refer to previous context naturally when relevant. "
                 f"Before suggesting that the user follow a team, check if they're already following it using get_followed_teams. "
                 f"Never suggest following a team the user is already following. "
-                f"When the user asks about a team (e.g. 'tell me about Brazil'), always proactively fetch their upcoming matches with get_upcoming_matches using days=14 so you can give a complete answer."
+                f"When the user asks about a team (e.g. 'tell me about Brazil'), always proactively fetch their upcoming matches with get_upcoming_matches using days=14 so you can give a complete answer. "
+                f"For trip planning requests (e.g. 'plan my World Cup trip', 'where do I need to travel'), follow this multi-step flow: "
+                f"1) Call get_followed_teams to know which teams the user follows. "
+                f"2) For each followed team, call get_team_schedule to get their full match schedule. "
+                f"3) For each unique venue/city in the combined schedules, call search_venue_info to get venue and travel details. "
+                f"4) Synthesize a chronological day-by-day itinerary showing dates, matches, cities, and venue tips. "
+                f"5) Highlight any back-to-back matches in different cities that require quick travel. "
+                f"Format trip plans as a clear day-by-day list, not a wall of text."
             )
     )
 

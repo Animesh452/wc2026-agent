@@ -5,7 +5,34 @@ import concurrent.futures
 
 BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world"
 
+
+TEAM_ALIASES = {
+    "usa": "United States",
+    "u.s.a.": "United States",
+    "us": "United States",
+    "america": "United States",
+    "uk": "England",
+    "britain": "England",
+    "great britain": "England",
+    "south korea": "South Korea",
+    "korea": "South Korea",
+    "ivory coast": "Côte d'Ivoire",
+    "turkey": "Türkiye",
+    "czech republic": "Czechia",
+    "uae": "United Arab Emirates",
+}
+
+
+def normalize_team(team: str) -> str:
+    if not team:
+        return team
+    return TEAM_ALIASES.get(team.lower().strip(), team)
+
+
 def get_upcoming_matches(team=None, days=14):
+    if team:
+        team = normalize_team(team)
+
     dates = [(datetime.now() + timedelta(days=i)).strftime("%Y%m%d") for i in range(days)]
 
     def fetch_day(date):
@@ -45,6 +72,8 @@ def get_upcoming_matches(team=None, days=14):
 
 
 def get_recent_results(team, n=5):
+    if team:
+        team = normalize_team(team)    
     results = []
     for i in range(1, 15):
         date = (datetime.now() - timedelta(days=i)).strftime("%Y%m%d")
@@ -93,6 +122,8 @@ def get_group_standings(group=None):
 
 
 def get_team_info(team):
+    if team:
+        team = normalize_team(team)
     try:
         r = requests.get(f"{BASE_URL}/teams", timeout=10)
         teams = r.json().get("sports", [{}])[0].get("leagues", [{}])[0].get("teams", [])
@@ -108,3 +139,19 @@ def get_team_info(team):
         return f"Team '{team}' not found"
     except Exception as e:
         return f"Could not fetch team info: {str(e)}"
+    
+def get_team_schedule(team: str, days: int = 45):
+    matches = get_upcoming_matches(team=team, days=days)
+    print(f"  get_team_schedule({team}, days={days}) raw result: {matches if isinstance(matches, str) else f'{len(matches)} matches'}")
+    if isinstance(matches, str):
+        return matches
+    
+    schedule = []
+    for m in matches:
+        schedule.append({
+            "date": m.get("date"),
+            "match": m.get("name"),
+            "venue": m.get("venue"),
+            "match_id": m.get("id")
+        })
+    return {"team": team, "matches": schedule, "total": len(schedule)}
