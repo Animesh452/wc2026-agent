@@ -142,19 +142,36 @@ ASYNC_TOOLS = {
 }
 
 
+# Conversation history per user, kept in memory
+CONVERSATIONS = {}
+
 async def run_agent(user_message: str, mcp_session=None, user_id: str = "default_user"):
     config = types.GenerateContentConfig(
         tools=[types.Tool(function_declarations=TOOL_DECLARATIONS)],
-        system_instruction=(
-            f"You are MatchDay, a World Cup 2026 AI assistant. "
-            f"The current user's ID is '{user_id}'. "
-            f"Always use this exact user_id when calling tools that require it. "
-            f"Never ask the user for their user_id. "
-            f"Be concise and friendly in your responses."
-        )
+            system_instruction=(
+                f"You are MatchDay, a World Cup 2026 AI assistant. "
+                f"The current user's ID is '{user_id}'. "
+                f"Always use this exact user_id when calling tools that require it. "
+                f"Never ask the user for their user_id. "
+                f"Be concise and friendly in your responses. "
+                f"You have memory of this conversation — refer to previous context naturally when relevant. "
+                f"Before suggesting that the user follow a team, check if they're already following it using get_followed_teams. "
+                f"Never suggest following a team the user is already following. "
+                f"When the user asks about a team (e.g. 'tell me about Brazil'), always proactively fetch their upcoming matches with get_upcoming_matches using days=14 so you can give a complete answer."
+            )
     )
 
-    contents = [types.Content(role="user", parts=[types.Part(text=user_message)])]
+    # Get or create conversation history for this user
+    if user_id not in CONVERSATIONS:
+        CONVERSATIONS[user_id] = []
+    
+    contents = CONVERSATIONS[user_id]
+    contents.append(types.Content(role="user", parts=[types.Part(text=user_message)]))
+
+    # Trim history to last 20 turns to prevent unbounded growth
+    if len(contents) > 40:
+        contents = contents[-40:]
+        CONVERSATIONS[user_id] = contents
 
     while True:
         response = await client.aio.models.generate_content(
@@ -167,7 +184,9 @@ async def run_agent(user_message: str, mcp_session=None, user_id: str = "default
         function_calls = [p for p in candidate.content.parts if p.function_call]
 
         if not function_calls:
-            return " ".join(p.text for p in candidate.content.parts if p.text)
+            text = " ".join(p.text for p in candidate.content.parts if p.text)
+            contents.append(candidate.content)
+            return text
 
         contents.append(candidate.content)
 

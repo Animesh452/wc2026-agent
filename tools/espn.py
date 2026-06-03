@@ -5,7 +5,7 @@ import concurrent.futures
 
 BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world"
 
-def get_upcoming_matches(team=None, days=5):
+def get_upcoming_matches(team=None, days=14):
     dates = [(datetime.now() + timedelta(days=i)).strftime("%Y%m%d") for i in range(days)]
 
     def fetch_day(date):

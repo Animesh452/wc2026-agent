@@ -110,3 +110,9 @@ async def get_teams(user_id: str):
 async def get_user_reminders(user_id: str):
     result = await get_reminders(mcp_session, user_id)
     return result
+
+@app.delete("/user/{user_id}/conversation")
+async def clear_conversation(user_id: str):
+    from agent import CONVERSATIONS
+    CONVERSATIONS.pop(user_id, None)
+    return {"cleared": True}
