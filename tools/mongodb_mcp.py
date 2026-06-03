@@ -1,4 +1,4 @@
-import json, re
+import json, re, os
 from datetime import datetime
 
 
@@ -14,19 +14,29 @@ def extract_mcp_data(result):
                     return data
         return []
     except Exception as e:
-        print(f"  ⚠ extract error: {e}")
+        print(f"  extract error: {e}")
         return []
 
 
+async def ensure_connected(session):
+    pass
+
+
 async def follow_team(session, user_id: str, team_name: str):
-    await session.call_tool("update-many", {
-        "database": "wc2026",
-        "collection": "users",
-        "filter": {"user_id": user_id},
-        "update": {"$addToSet": {"followed_teams": team_name}},
-        "upsert": True
-    })
-    return f"Now following {team_name}"
+    await ensure_connected(session)
+    try:
+        result = await session.call_tool("update-many", {
+            "database": "wc2026",
+            "collection": "users",
+            "filter": {"user_id": user_id},
+            "update": {"$addToSet": {"followed_teams": team_name}},
+            "upsert": True
+        })
+        print(f"  follow_team result: {result.content[0].text if result.content else 'no content'}")
+        return f"Now following {team_name}"
+    except Exception as e:
+        print(f"  follow_team error: {e}")
+        return f"Error following {team_name}: {e}"
 
 
 async def get_followed_teams(session, user_id: str):
@@ -43,19 +53,25 @@ async def get_followed_teams(session, user_id: str):
 
 
 async def save_reminder(session, user_id: str, team: str, match_date: str, minutes_before: int = 60):
-    await session.call_tool("insert-many", {
-        "database": "wc2026",
-        "collection": "reminders",
-        "documents": [{
-            "user_id": user_id,
-            "team": team,
-            "match_date": match_date,
-            "minutes_before": minutes_before,
-            "created_at": datetime.now().isoformat(),
-            "sent": False
-        }]
-    })
-    return f"Reminder set: {minutes_before} minutes before {team}'s match on {match_date}"
+    await ensure_connected(session)
+    try:
+        result = await session.call_tool("insert-many", {
+            "database": "wc2026",
+            "collection": "reminders",
+            "documents": [{
+                "user_id": user_id,
+                "team": team,
+                "match_date": match_date,
+                "minutes_before": minutes_before,
+                "created_at": datetime.now().isoformat(),
+                "sent": False
+            }]
+        })
+        print(f"  save_reminder result: {result.content[0].text if result.content else 'no content'}")
+        return f"Reminder set: {minutes_before} minutes before {team}'s match on {match_date}"
+    except Exception as e:
+        print(f"  save_reminder error: {e}")
+        return f"Error saving reminder: {e}"
 
 
 async def get_reminders(session, user_id: str):

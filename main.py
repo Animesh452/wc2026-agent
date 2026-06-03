@@ -8,7 +8,7 @@ from mcp.client.stdio import stdio_client
 from agent import run_agent
 from tools.mongodb_mcp import get_followed_teams, get_reminders
 from dotenv import load_dotenv
-import os, sys
+import os, sys, asyncio
 
 load_dotenv()
 
@@ -18,25 +18,55 @@ mcp_session = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global mcp_session
-    env = os.environ.copy()
-    env["MDB_MCP_CONNECTION_STRING"] = os.getenv("MONGODB_URI")
 
     command = "mongodb-mcp-server.cmd" if sys.platform == "win32" else "mongodb-mcp-server"
 
+    env = os.environ.copy()
+    mongodb_uri = os.getenv("MONGODB_URI", "").strip()
+    print(f"MongoDB URI present: {bool(mongodb_uri)}")
+    print(f"FULL URI: {mongodb_uri}")
+    
+    # Force pass to both variables the server checks for
+    env["MDB_MCP_CONNECTION_STRING"] = mongodb_uri
+    env["MONGODB_URI"] = mongodb_uri
+
+    # FIX HERE: Remove the args list completely so it falls back to your clean env configuration
     server_params = StdioServerParameters(
         command=command,
-        args=[],
+        args=[],  # Empty list bypasses the deprecated argument logic completely
         env=env
     )
 
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            mcp_session = session
-            print("MCP session ready")
-            yield
+    mcp_ready = asyncio.Event()
 
-    mcp_session = None
+    async def start_mcp():
+        global mcp_session
+        try:
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    mcp_session = session
+                    print("MCP session ready")
+                    mcp_ready.set()
+                    await asyncio.sleep(float('inf'))
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"MCP error: {e}")
+            mcp_ready.set()
+
+    task = asyncio.create_task(start_mcp())
+    await mcp_ready.wait()
+
+    yield
+
+    task.cancel()
+    try:
+        await task
+    except (asyncio.CancelledError, Exception):
+        pass
+    finally:
+        mcp_session = None
 
 
 app = FastAPI(lifespan=lifespan)

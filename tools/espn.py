@@ -1,34 +1,46 @@
 import requests
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 
 BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world"
 
-def get_upcoming_matches(team=None, days=7):
-    all_matches = []
-    for i in range(days):
-        date = (datetime.now() + timedelta(days=i)).strftime("%Y%m%d")
+def get_upcoming_matches(team=None, days=5):
+    dates = [(datetime.now() + timedelta(days=i)).strftime("%Y%m%d") for i in range(days)]
+
+    def fetch_day(date):
         try:
-            r = requests.get(f"{BASE_URL}/scoreboard", params={"dates": date}, timeout=10)
-            events = r.json().get("events", [])
-            for e in events:
-                comp = e.get("competitions", [{}])[0]
-                teams = [c.get("team", {}).get("displayName", "") 
-                         for c in comp.get("competitors", [])]
-                match = {
-                    "id": e.get("id"),
-                    "name": e.get("name"),
-                    "date": e.get("date"),
-                    "status": e.get("status", {}).get("type", {}).get("description"),
-                    "teams": teams,
-                    "venue": comp.get("venue", {}).get("fullName", "TBD")
-                }
-                if team:
-                    if any(team.lower() in t.lower() for t in teams):
-                        all_matches.append(match)
-                else:
-                    all_matches.append(match)
-        except Exception as ex:
-            continue
+            r = requests.get(f"{BASE_URL}/scoreboard", params={"dates": date}, timeout=8)
+            return r.json().get("events", [])
+        except Exception:
+            return []
+
+    with ThreadPoolExecutor(max_workers=days) as executor:
+        futures = {executor.submit(fetch_day, date): date for date in dates}
+        all_events = []
+        for future in concurrent.futures.as_completed(futures):
+            all_events.extend(future.result())
+
+    all_matches = []
+    for e in all_events:
+        comp = e.get("competitions", [{}])[0]
+        teams = [c.get("team", {}).get("displayName", "")
+                 for c in comp.get("competitors", [])]
+        match = {
+            "id": e.get("id"),
+            "name": e.get("name"),
+            "date": e.get("date"),
+            "status": e.get("status", {}).get("type", {}).get("description"),
+            "teams": teams,
+            "venue": comp.get("venue", {}).get("fullName", "TBD")
+        }
+        if team:
+            if any(team.lower() in t.lower() for t in teams):
+                all_matches.append(match)
+        else:
+            all_matches.append(match)
+
+    all_matches.sort(key=lambda x: x.get("date", ""))
     return all_matches if all_matches else f"No upcoming matches found for {team or 'any team'}"
 
 
