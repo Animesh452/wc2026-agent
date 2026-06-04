@@ -6,7 +6,8 @@ from tools.espn import (
 )
 from tools.mongodb_mcp import (
     follow_team, get_followed_teams,
-    save_reminder, get_reminders
+    save_reminder, get_reminders,
+    delete_reminders_for_team, delete_all_reminders, unfollow_team
 )
 from tools.venues import search_venue_info
 from dotenv import load_dotenv
@@ -89,20 +90,6 @@ TOOL_DECLARATIONS = [
         }
     ),
     types.FunctionDeclaration(
-        name="save_reminder",
-        description="Save a match reminder for a user.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "user_id": {"type": "string", "description": "The user's ID"},
-                "team": {"type": "string", "description": "Team to set reminder for"},
-                "match_date": {"type": "string", "description": "Date/time of the match"},
-                "minutes_before": {"type": "integer", "description": "Minutes before match to remind (default 60)"}
-            },
-            "required": ["user_id", "team", "match_date"]
-        }
-    ),
-    types.FunctionDeclaration(
         name="get_reminders",
         description="Get all upcoming reminders for a user.",
         parameters={
@@ -136,6 +123,61 @@ TOOL_DECLARATIONS = [
             "required": ["team"]
         }
     ),
+    types.FunctionDeclaration(
+        name="save_reminder",
+        description="Save a match reminder for a user. Optionally include an email to receive a notification.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "The user's ID"},
+                "team": {"type": "string", "description": "Team to set reminder for"},
+                "match_date": {"type": "string", "description": "Date/time of the match"},
+                "minutes_before": {"type": "integer", "description": "Minutes before match to remind (default 60)"},
+                "email": {"type": "string", "description": "Email address to send the reminder to (optional)"}
+            },
+            "required": ["user_id", "team", "match_date"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="delete_reminders_for_team",
+        description="Delete all reminders for a specific team.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "The user's ID"},
+                "team": {"type": "string", "description": "Team name whose reminders should be deleted"}
+            },
+            "required": ["user_id", "team"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="delete_all_reminders",
+        description="Delete all of a user's reminders. Can optionally exclude specific teams (e.g. delete all except Brazil).",
+        parameters={
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "The user's ID"},
+                "except_teams": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of team names whose reminders should be kept"
+                }
+            },
+            "required": ["user_id"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="unfollow_team",
+        description="Remove a team from the user's followed teams list.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "The user's ID"},
+                "team_name": {"type": "string", "description": "Team to unfollow"}
+            },
+            "required": ["user_id", "team_name"]
+        }
+    ),
 ]
 
 SYNC_TOOLS = {
@@ -152,6 +194,9 @@ ASYNC_TOOLS = {
     "get_followed_teams": get_followed_teams,
     "save_reminder": save_reminder,
     "get_reminders": get_reminders,
+    "delete_reminders_for_team": delete_reminders_for_team,
+    "delete_all_reminders": delete_all_reminders,
+    "unfollow_team": unfollow_team,
 }
 
 

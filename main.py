@@ -7,6 +7,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from agent import run_agent
 from tools.mongodb_mcp import get_followed_teams, get_reminders
+from tools.reminder_worker import reminder_worker
 from dotenv import load_dotenv
 import os, sys, asyncio
 
@@ -58,8 +59,13 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(start_mcp())
     await mcp_ready.wait()
 
+    # Start background reminder worker
+    worker_task = asyncio.create_task(reminder_worker())
+    print("Reminder worker started")
+
     yield
 
+    worker_task.cancel()
     task.cancel()
     try:
         await task

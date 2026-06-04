@@ -52,7 +52,7 @@ async def get_followed_teams(session, user_id: str):
     return {"followed_teams": []}
 
 
-async def save_reminder(session, user_id: str, team: str, match_date: str, minutes_before: int = 60):
+async def save_reminder(session, user_id: str, team: str, match_date: str, minutes_before: int = 60, email: str = None):
     await ensure_connected(session)
     try:
         result = await session.call_tool("insert-many", {
@@ -63,12 +63,15 @@ async def save_reminder(session, user_id: str, team: str, match_date: str, minut
                 "team": team,
                 "match_date": match_date,
                 "minutes_before": minutes_before,
+                "email": email,
                 "created_at": datetime.now().isoformat(),
                 "sent": False
             }]
         })
         print(f"  save_reminder result: {result.content[0].text if result.content else 'no content'}")
-        return f"Reminder set: {minutes_before} minutes before {team}'s match on {match_date}"
+        if email:
+            return f"Reminder set: {minutes_before} minutes before {team}'s match on {match_date}. You'll get an email at {email}."
+        return f"Reminder set: {minutes_before} minutes before {team}'s match on {match_date}. Tell me your email if you want to receive a notification."
     except Exception as e:
         print(f"  save_reminder error: {e}")
         return f"Error saving reminder: {e}"
@@ -82,3 +85,54 @@ async def get_reminders(session, user_id: str):
     })
     docs = extract_mcp_data(result)
     return {"reminders": docs if isinstance(docs, list) else []}
+
+async def delete_reminders_for_team(session, user_id: str, team: str):
+    await ensure_connected(session)
+    try:
+        result = await session.call_tool("delete-many", {
+            "database": "wc2026",
+            "collection": "reminders",
+            "filter": {"user_id": user_id, "team": team}
+        })
+        print(f"  delete_reminders_for_team result: {result.content[0].text if result.content else 'no content'}")
+        return f"Deleted all reminders for {team}"
+    except Exception as e:
+        print(f"  delete_reminders_for_team error: {e}")
+        return f"Error deleting reminders: {e}"
+
+
+async def delete_all_reminders(session, user_id: str, except_teams: list = None):
+    await ensure_connected(session)
+    try:
+        filter_q = {"user_id": user_id}
+        if except_teams:
+            filter_q["team"] = {"$nin": except_teams}
+        
+        result = await session.call_tool("delete-many", {
+            "database": "wc2026",
+            "collection": "reminders",
+            "filter": filter_q
+        })
+        print(f"  delete_all_reminders result: {result.content[0].text if result.content else 'no content'}")
+        if except_teams:
+            return f"Deleted all reminders except for: {', '.join(except_teams)}"
+        return "Deleted all reminders"
+    except Exception as e:
+        print(f"  delete_all_reminders error: {e}")
+        return f"Error deleting reminders: {e}"
+
+
+async def unfollow_team(session, user_id: str, team_name: str):
+    await ensure_connected(session)
+    try:
+        result = await session.call_tool("update-many", {
+            "database": "wc2026",
+            "collection": "users",
+            "filter": {"user_id": user_id},
+            "update": {"$pull": {"followed_teams": team_name}}
+        })
+        print(f"  unfollow_team result: {result.content[0].text if result.content else 'no content'}")
+        return f"Unfollowed {team_name}"
+    except Exception as e:
+        print(f"  unfollow_team error: {e}")
+        return f"Error unfollowing {team_name}: {e}"
