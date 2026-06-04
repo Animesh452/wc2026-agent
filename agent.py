@@ -9,6 +9,10 @@ from tools.mongodb_mcp import (
     save_reminder, get_reminders,
     delete_reminders_for_team, delete_all_reminders, unfollow_team
 )
+from tools.predictions import (
+    save_prediction, get_predictions, delete_prediction,
+    score_predictions, get_leaderboard
+)
 from tools.venues import search_venue_info
 from dotenv import load_dotenv
 import os, json
@@ -178,6 +182,68 @@ TOOL_DECLARATIONS = [
             "required": ["user_id", "team_name"]
         }
     ),
+    types.FunctionDeclaration(
+    name="save_prediction",
+    description="Save a user's prediction for a specific World Cup match. Requires match_id, both team names, predicted scores, and ideally the match date.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "user_id": {"type": "string"},
+            "match_id": {"type": "string", "description": "ESPN match ID — get this from get_upcoming_matches"},
+            "home_team": {"type": "string"},
+            "away_team": {"type": "string"},
+            "predicted_home_score": {"type": "integer"},
+            "predicted_away_score": {"type": "integer"},
+            "match_date": {"type": "string", "description": "ISO date of the match (optional)"}
+        },
+        "required": ["user_id", "match_id", "home_team", "away_team", "predicted_home_score", "predicted_away_score"]
+    }
+    ),
+    types.FunctionDeclaration(
+        name="get_predictions",
+        description="Get a user's match predictions. Optionally filter by status: 'all', 'pending', or 'completed'.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string"},
+                "status": {"type": "string", "description": "Filter: 'all' (default), 'pending', or 'completed'"}
+            },
+            "required": ["user_id"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="delete_prediction",
+        description="Delete a user's prediction for a specific match.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string"},
+                "match_id": {"type": "string"}
+            },
+            "required": ["user_id", "match_id"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="score_predictions",
+        description="Fetch actual match results from ESPN and score the user's pending predictions. Returns a breakdown of points earned (3 for exact score, 1 for correct winner, 0 for wrong).",
+        parameters={
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string"}
+            },
+            "required": ["user_id"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="get_leaderboard",
+        description="Get the top users ranked by total prediction points across all users.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Number of top users to return (default 10)"}
+            }
+        }
+    ),
 ]
 
 SYNC_TOOLS = {
@@ -197,6 +263,11 @@ ASYNC_TOOLS = {
     "delete_reminders_for_team": delete_reminders_for_team,
     "delete_all_reminders": delete_all_reminders,
     "unfollow_team": unfollow_team,
+    "save_prediction": save_prediction,
+    "get_predictions": get_predictions,
+    "delete_prediction": delete_prediction,
+    "score_predictions": score_predictions,
+    "get_leaderboard": get_leaderboard,
 }
 
 
@@ -223,6 +294,8 @@ async def run_agent(user_message: str, mcp_session=None, user_id: str = "default
                 f"4) Synthesize a chronological day-by-day itinerary showing dates, matches, cities, and venue tips. "
                 f"5) Highlight any back-to-back matches in different cities that require quick travel. "
                 f"Format trip plans as a clear day-by-day list, not a wall of text."
+                f"For predictions, always look up the match first with get_upcoming_matches to get the match_id before calling save_prediction. "
+                f"When asked to score predictions, always call score_predictions and present the breakdown clearly."
             )
     )
 
