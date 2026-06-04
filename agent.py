@@ -14,6 +14,7 @@ from tools.predictions import (
     score_predictions, get_leaderboard
 )
 from tools.venues import search_venue_info
+from tools.web_search import web_search, head_to_head
 from dotenv import load_dotenv
 import os, json
 
@@ -244,6 +245,29 @@ TOOL_DECLARATIONS = [
             }
         }
     ),
+    types.FunctionDeclaration(
+        name="web_search",
+        description="Search the web for current information not available in other tools. Use for news, injuries, recent events, transfer rumors, or anything time-sensitive.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query"}
+            },
+            "required": ["query"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="head_to_head",
+        description="Get historical head-to-head record between two football teams.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "team_a": {"type": "string"},
+                "team_b": {"type": "string"}
+            },
+            "required": ["team_a", "team_b"]
+        }
+    ),
 ]
 
 SYNC_TOOLS = {
@@ -253,6 +277,8 @@ SYNC_TOOLS = {
     "get_team_info": get_team_info,
     "search_venue_info": search_venue_info,
     "get_team_schedule": get_team_schedule,
+    "web_search": web_search,
+    "head_to_head": head_to_head,
 }
 
 ASYNC_TOOLS = {

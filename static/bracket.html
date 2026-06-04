@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MatchDay — Tournament Bracket</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0e1a;
+      color: #e0e6f0;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    header {
+      max-width: 1200px;
+      margin: 0 auto 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #1e3a5f;
+    }
+    header h1 { color: #38bdf8; font-size: 24px; }
+    header .subtitle { color: #64748b; font-size: 13px; margin-top: 4px; }
+    header a {
+      color: #38bdf8; text-decoration: none;
+      padding: 8px 16px; border: 1px solid #1e3a5f;
+      border-radius: 8px; font-size: 13px;
+    }
+    header a:hover { background: #111827; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .date-section { margin-bottom: 28px; }
+    .date-header {
+      font-size: 15px; font-weight: 600;
+      color: #94a3b8; margin-bottom: 12px;
+      padding-bottom: 6px; border-bottom: 1px solid #1e3a5f;
+    }
+    .matches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .match-card {
+      background: #111827;
+      border: 1px solid #1e3a5f;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .match-time { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+    .match-teams { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    .match-venue { font-size: 12px; color: #64748b; }
+    .loading, .empty {
+      text-align: center; color: #64748b;
+      padding: 48px; font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⚽ Tournament Bracket</h1>
+    <div class="subtitle">World Cup 2026 · Full Schedule</div>
+  </div>
+  <a href="/">← Back to chat</a>
+</header>
+
+<div class="container">
+  <div id="content" class="loading">Loading bracket...</div>
+</div>
+
+<script>
+  async function loadBracket() {
+    try {
+      const res = await fetch('/api/bracket-data');
+      const data = await res.json();
+      const byDate = data.by_date || {};
+      const dates = Object.keys(byDate).sort();
+      
+      const content = document.getElementById('content');
+      
+      if (!dates.length) {
+        content.className = 'empty';
+        content.textContent = 'No upcoming matches found.';
+        return;
+      }
+      
+      content.className = '';
+      content.innerHTML = '';
+      
+      const formatTime = iso => {
+        try {
+          const d = new Date(iso);
+          return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+        } catch (e) { return ''; }
+      };
+      
+      const formatDate = key => {
+        const d = new Date(key + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      };
+      
+      dates.forEach(date => {
+        const section = document.createElement('div');
+        section.className = 'date-section';
+        
+        const header = document.createElement('div');
+        header.className = 'date-header';
+        header.textContent = formatDate(date);
+        section.appendChild(header);
+        
+        const grid = document.createElement('div');
+        grid.className = 'matches-grid';
+        
+        byDate[date].forEach(m => {
+          const card = document.createElement('div');
+          card.className = 'match-card';
+          card.innerHTML = `
+            <div class="match-time">${formatTime(m.date)}</div>
+            <div class="match-teams">${m.teams[0]} vs ${m.teams[1]}</div>
+            <div class="match-venue">📍 ${m.venue}</div>
+          `;
+          grid.appendChild(card);
+        });
+        
+        section.appendChild(grid);
+        content.appendChild(section);
+      });
+    } catch (e) {
+      document.getElementById('content').textContent = 'Failed to load bracket data.';
+    }
+  }
+  
+  loadBracket();
+</script>
+
+</body>
+</html>

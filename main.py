@@ -122,3 +122,25 @@ async def clear_conversation(user_id: str):
     from agent import CONVERSATIONS
     CONVERSATIONS.pop(user_id, None)
     return {"cleared": True}
+
+@app.get("/bracket", response_class=HTMLResponse)
+async def bracket():
+    with open("static/bracket.html") as f:
+        return f.read()
+
+
+@app.get("/api/bracket-data")
+async def bracket_data():
+    from tools.espn import get_upcoming_matches
+    matches = get_upcoming_matches(days=40)
+    if isinstance(matches, str):
+        return {"matches": []}
+    
+    grouped = {}
+    for m in matches:
+        date_key = m.get("date", "")[:10]
+        if date_key not in grouped:
+            grouped[date_key] = []
+        grouped[date_key].append(m)
+    
+    return {"matches": matches, "by_date": grouped}
