@@ -79,6 +79,7 @@ The MCP integration is meaningful and non-trivial — every user state operation
 ---
 
 ## Repository structure
+```text
 wc2026-agent/
 ├── main.py                    # FastAPI app, lifespan, routes
 ├── agent.py                   # Gemini tool-calling loop, tool declarations
@@ -98,6 +99,7 @@ wc2026-agent/
 ├── requirements.txt
 ├── LICENSE
 └── README.md
+```text
 
 ---
 
