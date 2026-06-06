@@ -99,7 +99,7 @@ wc2026-agent/
 ├── requirements.txt
 ├── LICENSE
 └── README.md
-```text
+```
 
 ---
 
