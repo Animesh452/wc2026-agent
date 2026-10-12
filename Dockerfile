@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y curl && \
     apt-get install -y nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g mongodb-mcp-server
+RUN npm install -g mongodb-mcp-server@1.11.0
 
 WORKDIR /app
 

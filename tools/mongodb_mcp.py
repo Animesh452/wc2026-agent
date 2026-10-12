@@ -18,6 +18,14 @@ def extract_mcp_data(result):
         return []
 
 
+def mcp_error(result):
+    """Return the error text if an MCP call failed, otherwise None."""
+    if getattr(result, "isError", False):
+        texts = [c.text for c in result.content if getattr(c, "text", None)]
+        return " ".join(texts) or "Unknown MCP error"
+    return None
+
+
 async def ensure_connected(session):
     pass
 
@@ -32,7 +40,10 @@ async def follow_team(session, user_id: str, team_name: str):
             "update": {"$addToSet": {"followed_teams": team_name}},
             "upsert": True
         })
-        print(f"  follow_team result: {result.content[0].text if result.content else 'no content'}")
+        err = mcp_error(result)
+        if err:
+            print(f"  follow_team failed: {err}")
+            return f"Failed to follow {team_name}: {err}"
         return f"Now following {team_name}"
     except Exception as e:
         print(f"  follow_team error: {e}")
@@ -46,6 +57,9 @@ async def get_followed_teams(session, user_id: str):
         "filter": {"user_id": user_id},
         "limit": 1
     })
+    err = mcp_error(result)
+    if err:
+        return {"followed_teams": [], "error": err}
     docs = extract_mcp_data(result)
     if docs and isinstance(docs, list):
         return {"followed_teams": docs[0].get("followed_teams", [])}
@@ -68,6 +82,10 @@ async def save_reminder(session, user_id: str, team: str, match_date: str, minut
                 "sent": False
             }]
         })
+        err = mcp_error(result)
+        if err:
+            print(f"  save_reminder failed: {err}")
+            return f"Failed to save reminder for {team}: {err}"
         print(f"  save_reminder result: {result.content[0].text if result.content else 'no content'}")
         if email:
             return f"Reminder set: {minutes_before} minutes before {team}'s match on {match_date}. You'll get an email at {email}."
@@ -83,6 +101,9 @@ async def get_reminders(session, user_id: str):
         "collection": "reminders",
         "filter": {"user_id": user_id, "sent": False}
     })
+    err = mcp_error(result)
+    if err:
+        return {"reminders": [], "error": err}
     docs = extract_mcp_data(result)
     return {"reminders": docs if isinstance(docs, list) else []}
 
@@ -94,6 +115,10 @@ async def delete_reminders_for_team(session, user_id: str, team: str):
             "collection": "reminders",
             "filter": {"user_id": user_id, "team": team}
         })
+        err = mcp_error(result)
+        if err:
+            print(f"  delete_reminders_for_team failed: {err}")
+            return f"Failed to delete reminders for {team}: {err}"
         print(f"  delete_reminders_for_team result: {result.content[0].text if result.content else 'no content'}")
         return f"Deleted all reminders for {team}"
     except Exception as e:
@@ -113,6 +138,10 @@ async def delete_all_reminders(session, user_id: str, except_teams: list = None)
             "collection": "reminders",
             "filter": filter_q
         })
+        err = mcp_error(result)
+        if err:
+            print(f"  delete_all_reminders failed: {err}")
+            return f"Failed to delete reminders: {err}"
         print(f"  delete_all_reminders result: {result.content[0].text if result.content else 'no content'}")
         if except_teams:
             return f"Deleted all reminders except for: {', '.join(except_teams)}"
@@ -131,6 +160,10 @@ async def unfollow_team(session, user_id: str, team_name: str):
             "filter": {"user_id": user_id},
             "update": {"$pull": {"followed_teams": team_name}}
         })
+        err = mcp_error(result)
+        if err:
+            print(f"  unfollow_team failed: {err}")
+            return f"Failed to unfollow {team_name}: {err}"
         print(f"  unfollow_team result: {result.content[0].text if result.content else 'no content'}")
         return f"Unfollowed {team_name}"
     except Exception as e:

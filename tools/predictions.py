@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from tools.mongodb_mcp import extract_mcp_data, ensure_connected
+from tools.mongodb_mcp import extract_mcp_data, ensure_connected, mcp_error
 import requests
 
 ESPN_SUMMARY = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary"
@@ -18,11 +18,16 @@ async def save_prediction(session, user_id: str, match_id: str, home_team: str, 
             predicted_winner = "Draw"
 
         # Upsert pattern: delete any existing prediction for this user+match, then insert
-        await session.call_tool("delete-many", {
+        del_result = await session.call_tool("delete-many", {
             "database": "wc2026",
             "collection": "predictions",
             "filter": {"user_id": user_id, "match_id": match_id}
         })
+
+        err = mcp_error(del_result)
+        if err:
+            print(f"  save_prediction failed (clearing old pick): {err}")
+            return f"Failed to save prediction for {home_team} vs {away_team}: {err}"
 
         result = await session.call_tool("insert-many", {
             "database": "wc2026",
@@ -43,6 +48,10 @@ async def save_prediction(session, user_id: str, match_id: str, home_team: str, 
                 "created_at": datetime.utcnow().isoformat()
             }]
         })
+        err = mcp_error(result)
+        if err:
+            print(f"  save_prediction failed: {err}")
+            return f"Failed to save prediction for {home_team} vs {away_team}: {err}"
         print(f"  save_prediction result: {result.content[0].text if result.content else 'no content'}")
         return f"Prediction saved: {home_team} {predicted_home_score}-{predicted_away_score} {away_team} (you picked {predicted_winner} to win)"
     except Exception as e:
@@ -62,6 +71,9 @@ async def get_predictions(session, user_id: str, status: str = "all"):
         "collection": "predictions",
         "filter": filter_q
     })
+    err = mcp_error(result)
+    if err:
+        return {"predictions": [], "error": err}
     docs = extract_mcp_data(result)
     return {"predictions": docs if isinstance(docs, list) else []}
 
@@ -74,6 +86,10 @@ async def delete_prediction(session, user_id: str, match_id: str):
             "collection": "predictions",
             "filter": {"user_id": user_id, "match_id": match_id}
         })
+        err = mcp_error(result)
+        if err:
+            print(f"  delete_prediction failed: {err}")
+            return f"Failed to delete prediction: {err}"
         print(f"  delete_prediction result: {result.content[0].text if result.content else 'no content'}")
         return f"Prediction deleted"
     except Exception as e:
@@ -129,6 +145,9 @@ async def score_predictions(session, user_id: str):
         "collection": "predictions",
         "filter": {"user_id": user_id, "result_status": "pending"}
     })
+    err = mcp_error(result)
+    if err:
+        return {"updated": 0, "total_points_earned": 0, "breakdown": [], "error": err}
     pending = extract_mcp_data(result)
     
     if not pending:
@@ -157,7 +176,7 @@ async def score_predictions(session, user_id: str):
             actual_home, actual_away
         )
         
-        await session.call_tool("update-many", {
+        update_result = await session.call_tool("update-many", {
             "database": "wc2026",
             "collection": "predictions",
             "filter": {"user_id": user_id, "match_id": pred["match_id"]},
@@ -178,6 +197,9 @@ async def score_predictions(session, user_id: str):
             "result": status,
             "points": points
         })
+        if mcp_error(update_result):
+            print(f"  score_predictions: failed to update {pred['match_id']}: {mcp_error(update_result)}")
+            continue
     
     return {
         "updated": updated_count,
@@ -206,6 +228,9 @@ async def get_leaderboard(session, limit: int = 10):
                 {"$limit": limit}
             ]
         })
+        err = mcp_error(result)
+        if err:
+            return {"leaderboard": [], "error": err}
         docs = extract_mcp_data(result)
         leaderboard = []
         for entry in docs:

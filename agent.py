@@ -1,5 +1,6 @@
+import asyncio, random
 from google import genai
-from google.genai import types
+from google.genai import types, errors
 from tools.espn import (
     get_upcoming_matches, get_recent_results,
     get_group_standings, get_team_info, get_team_schedule
@@ -25,6 +26,25 @@ client = genai.Client(
     project=os.getenv("GCP_PROJECT_ID"),
     location="global"
 )
+
+
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
+RETRYABLE_CODES = {429, 500, 503}
+
+
+async def generate_with_retry(contents, config, max_attempts=4):
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return await client.aio.models.generate_content(
+                model=MODEL, contents=contents, config=config
+            )
+        except errors.APIError as e:
+            if e.code not in RETRYABLE_CODES or attempt == max_attempts:
+                raise
+            delay = (2 ** (attempt - 1)) + random.uniform(0, 1)
+            print(f"  Gemini {e.code}, retrying in {delay:.1f}s (attempt {attempt}/{max_attempts})")
+            await asyncio.sleep(delay)
+
 
 TOOL_DECLARATIONS = [
     types.FunctionDeclaration(
@@ -331,52 +351,53 @@ async def run_agent(user_message: str, mcp_session=None, user_id: str = "default
     # Get or create conversation history for this user
     if user_id not in CONVERSATIONS:
         CONVERSATIONS[user_id] = []
-    
+
+    # Trim before adding the new turn
+    if len(CONVERSATIONS[user_id]) > 40:
+        CONVERSATIONS[user_id] = CONVERSATIONS[user_id][-40:]
+
     contents = CONVERSATIONS[user_id]
+    start_len = len(contents)
     contents.append(types.Content(role="user", parts=[types.Part(text=user_message)]))
 
-    # Trim history to last 20 turns to prevent unbounded growth
-    if len(contents) > 40:
-        contents = contents[-40:]
-        CONVERSATIONS[user_id] = contents
+    try:
+        while True:
+            response = await generate_with_retry(contents, config)
 
-    while True:
-        response = await client.aio.models.generate_content(
-            model="gemini-3.1-pro-preview",
-            contents=contents,
-            config=config
-        )
+            candidate = response.candidates[0]
+            function_calls = [p for p in candidate.content.parts if p.function_call]
 
-        candidate = response.candidates[0]
-        function_calls = [p for p in candidate.content.parts if p.function_call]
+            if not function_calls:
+                text = " ".join(p.text for p in candidate.content.parts if p.text)
+                contents.append(candidate.content)
+                return text
 
-        if not function_calls:
-            text = " ".join(p.text for p in candidate.content.parts if p.text)
             contents.append(candidate.content)
-            return text
 
-        contents.append(candidate.content)
+            fn_response_parts = []
+            for part in function_calls:
+                fc = part.function_call
+                args = dict(fc.args)
+                print(f"  → calling {fc.name}({args})")
 
-        fn_response_parts = []
-        for part in function_calls:
-            fc = part.function_call
-            args = dict(fc.args)
-            print(f"  → calling {fc.name}({args})")
+                if fc.name in SYNC_TOOLS:
+                    result = SYNC_TOOLS[fc.name](**args)
+                elif fc.name in ASYNC_TOOLS and mcp_session:
+                    result = await ASYNC_TOOLS[fc.name](mcp_session, **args)
+                else:
+                    result = f"Tool {fc.name} not available"
 
-            if fc.name in SYNC_TOOLS:
-                result = SYNC_TOOLS[fc.name](**args)
-            elif fc.name in ASYNC_TOOLS and mcp_session:
-                result = await ASYNC_TOOLS[fc.name](mcp_session, **args)
-            else:
-                result = f"Tool {fc.name} not available"
-
-            fn_response_parts.append(
-                types.Part(
-                    function_response=types.FunctionResponse(
-                        name=fc.name,
-                        response={"result": json.dumps(result, default=str)}
+                fn_response_parts.append(
+                    types.Part(
+                        function_response=types.FunctionResponse(
+                            name=fc.name,
+                            response={"result": json.dumps(result, default=str)}
+                        )
                     )
                 )
-            )
 
-        contents.append(types.Content(role="user", parts=fn_response_parts))
+            contents.append(types.Content(role="user", parts=fn_response_parts))
+    
+    except Exception:
+        del contents[start_len:]  # roll back the failed turn
+        raise

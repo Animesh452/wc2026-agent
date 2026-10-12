@@ -98,11 +98,15 @@ async def root():
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    response = await run_agent(
-        request.message,
-        mcp_session=mcp_session,
-        user_id=request.user_id
-    )
+    try:
+        response = await run_agent(
+            request.message,
+            mcp_session=mcp_session,
+            user_id=request.user_id
+        )
+    except Exception as e:
+        print(f"  /chat failed: {e}")
+        response = "I'm having trouble reaching my AI backend right now. Please try again in a moment."
     return {"response": response}
 
 
