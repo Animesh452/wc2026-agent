@@ -74,13 +74,7 @@ matchday/
 
 ### Adding a new tool
 
-1. Write the implementation in `tools/<name>.py`, sync or async depending on
-   what it does
-2. Import it in `agent.py`
-3. Add a `types.FunctionDeclaration` to `TOOL_DECLARATIONS`
-4. Add the function to `SYNC_TOOLS` or `ASYNC_TOOLS`
-5. If the tool needs new behavior expectations from the model, update the
-   system instruction in `run_agent`
+Follow the `agent-tools` skill in `.claude/skills/agent-tools/SKILL.md`.
 
 ### MongoDB MCP calls
 
