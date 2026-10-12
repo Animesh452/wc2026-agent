@@ -1,7 +1,7 @@
 # MatchDay
 
-Conversational AI agent for global football, currently deployed at
-https://wc2026-agent-623255749732.us-central1.run.app
+Conversational AI agent for global football, deployed at
+https://matchday-901040990547.us-central1.run.app
 
 Originally built as a World Cup 2026 assistant for the Google Cloud Rapid Agent
 Hackathon (MongoDB partner track). Being expanded to support multiple
@@ -11,7 +11,7 @@ Premier League 2026-27.
 ## Architecture
 
 Single FastAPI service on Cloud Run wrapping a custom Python tool-calling loop
-against Gemini 3.1 Pro via Vertex AI. Tools split into four categories:
+against Gemini via Vertex AI. Tools split into four categories:
 
 - **ESPN API** — live match data (schedules, results, standings)
 - **MongoDB MCP** — user state (follows, reminders, predictions) via the
@@ -19,9 +19,9 @@ against Gemini 3.1 Pro via Vertex AI. Tools split into four categories:
 - **Discovery Engine** — RAG-based venue knowledge (Google Cloud AI Applications)
 - **Google Search** — head-to-head queries via Gemini's native grounding
 
-Background asyncio task runs every 30 seconds, checks MongoDB for due
-reminders, sends emails via Brevo SMTP relay. Runs alongside the FastAPI app
-in the same Cloud Run container (requires `--no-cpu-throttling` on deploy).
+A background asyncio task checks MongoDB every 30 seconds for due reminders
+and sends emails via Brevo SMTP. See "Deploy configuration" for why it
+currently doesn't fire reliably.
 
 ## Directory layout
 
@@ -43,82 +43,126 @@ matchday/
 
 ## Tech stack
 
-- Python 3.11+ (Cloud Run runs 3.11, local dev may be 3.10)
+- Python 3.11 in production (Cloud Run); local dev may be 3.10
 - FastAPI + uvicorn
-- google-genai SDK (NOT the older vertexai SDK — see "Gotchas" below)
-- pymongo + MongoDB MCP server (Node.js 22+)
+- google-genai SDK (NOT the older vertexai SDK)
+- Gemini model set via `GEMINI_MODEL` env var, defaulting to
+  `gemini-3.1-pro-preview`
+- pymongo + MongoDB MCP server 1.11.0 (pinned, Node.js 22+)
 - Google Cloud Discovery Engine client
 - Brevo SMTP via smtplib
+
+## GCP resources
+
+- Project ID: `matchday-agent-511216`
+- Cloud Run service: `matchday` (region `us-central1`)
+- Venue docs bucket: `gs://matchday-venue-docs-511216`
+- Discovery Engine data store: `matchday-venues_1791751375788`
+- Discovery Engine search app: `matchday-search_1791751586714`
+- All config and credentials live in Secret Manager
 
 ## Code style
 
 - Type hints on function signatures where meaningful, not obsessive about them
 - Async where the tool touches network I/O or MCP; sync for pure functions
-- Print statements with a two-space `→` prefix for tool call logging (see agent.py)
-- Error handling: tools catch exceptions and return string error messages
-  rather than raising — this keeps the agent loop from crashing on tool failures
-- Prefer clarity over cleverness; this is a demo project, not a performance-tuned one
+- Print statements with a two-space `→` prefix for tool call logging
+- Tools catch exceptions and return string error messages rather than raising,
+  so a single tool failure never crashes the agent loop
+- Prefer clarity over cleverness
 
 ## Key patterns
 
 ### Adding a new tool
 
-Every agent tool follows the same pattern:
-
-1. Write the implementation in `tools/<name>.py` — sync or async depending on what it does
+1. Write the implementation in `tools/<name>.py`, sync or async depending on
+   what it does
 2. Import it in `agent.py`
 3. Add a `types.FunctionDeclaration` to `TOOL_DECLARATIONS`
-4. Add the function to `SYNC_TOOLS` or `ASYNC_TOOLS` dict
+4. Add the function to `SYNC_TOOLS` or `ASYNC_TOOLS`
 5. If the tool needs new behavior expectations from the model, update the
    system instruction in `run_agent`
 
-### MongoDB MCP tools
+### MongoDB MCP calls
 
-MCP responses come wrapped in security tags. Use `extract_mcp_data()` from
-`tools/mongodb_mcp.py` to parse array responses. Never parse the raw text
-directly.
+- Parse array responses with `extract_mcp_data()` from `tools/mongodb_mcp.py`.
+  MCP responses are wrapped in security tags; never parse raw text directly.
+- Check every `call_tool` result with `mcp_error()` before trusting it.
+  - Writes: on error, return a message saying what failed, e.g.
+    `f"Failed to follow {team_name}: {err}"`. Never return a success
+    message without checking.
+  - Reads: on error, return the same response shape as the success path plus
+    an `error` field, e.g. `{"followed_teams": [], "error": err}`. This lets
+    the agent tell "nothing found" apart from "the call failed".
+
+### Gemini calls
+
+- All model calls in the agent loop go through `generate_with_retry()` in
+  `agent.py`, never `client.aio.models.generate_content()` directly. It
+  retries 429/500/503 with exponential backoff and jitter.
+- `run_agent` records the history length at the start of each turn and rolls
+  back on failure. Do not remove this: a half-finished turn left in history
+  (e.g. a function call with no function response) makes Gemini reject every
+  later message from that user.
 
 ### Tool call logging
 
-Every tool call prints a line like `  → calling tool_name({args})` inside the
-agent loop. Keep this format — it's useful for grep-based log analysis.
+Every tool call prints `  → calling tool_name({args})` inside the agent loop.
+Keep this format; it's used for grep-based log analysis.
 
 ## Gotchas
 
-- **google-genai vs vertexai SDK.** Use `from google import genai`, NOT the
-  older `import vertexai`. The old SDK is deprecated. Model calls use
-  `client.aio.models.generate_content(...)` for async.
+- **google-genai vs vertexai SDK.** Use `from google import genai`, not the
+  deprecated `import vertexai`.
 
-- **MongoDB MCP connection string.** The URI must include the database name
-  (`.../wc2026?params`, not `.../?params`). Missing DB name causes cryptic
-  "invalid connection string" errors. Passed as `MDB_MCP_CONNECTION_STRING`
-  env var to the MCP subprocess.
+- **mongodb-mcp-server is pinned to 1.11.0 on purpose.** Version 3.x requires a
+  `connectionId` argument on every tool call that this codebase doesn't send.
+  An unpinned install silently pulled 3.x and broke all MongoDB operations.
+  Upgrading is a deliberate task (inspect the new tool schemas via
+  `session.list_tools()` first), not a casual version bump.
 
-- **Atlas IP whitelist.** Must allow `0.0.0.0/0` for Cloud Run to connect —
-  Cloud Run egress IPs are dynamic.
+- **Pin dependencies in the Dockerfile.** Unpinned installs make builds
+  non-reproducible. Any new global install must specify a version.
 
-- **Cloud Run background workers.** Require `--no-cpu-throttling` on deploy,
-  otherwise CPU is frozen between requests and background asyncio tasks
-  silently stop ticking.
+- **MongoDB connection string.** The URI must include the database name
+  (`.../wc2026?params`, not `.../?params`).
 
-- **Windows-only pip packages.** `pywin32`, `colorama`, `watchfiles` show up
-  in `pip freeze` on Windows dev machines but break the Linux Docker build.
-  Strip them before deploying.
+- **Atlas IP access list.** Must allow `0.0.0.0/0`; Cloud Run egress IPs are
+  dynamic.
+
+- **Gemini 429s.** Preview models share capacity across all customers and
+  return 429 `RESOURCE_EXHAUSTED` intermittently, independent of our own
+  usage. Handled by `generate_with_retry()`.
+
+- **Windows-only pip packages.** `pywin32`, `colorama`, and `watchfiles` show
+  up in `pip freeze` on Windows dev machines but break the Linux Docker build.
+  Strip them from `requirements.txt` before deploying.
+
+- **Windows line endings in .env.** Strip `\r` when reading `.env` values in
+  shell scripts, or invisible carriage returns end up inside secrets.
 
 - **Team name normalization.** ESPN uses full names ("United States",
   "Türkiye", "Czechia") but users type shortcuts ("USA", "Turkey"). See
   `TEAM_ALIASES` in `tools/espn.py`.
 
-- **ESPN scoreboard endpoint.** Returns only the current/most recent matchday
-  by default. For date ranges, loop through days and hit the scoreboard with
-  `?dates=YYYYMMDD` param per day.
+- **ESPN scoreboard endpoint.** Returns only the current or most recent
+  matchday by default. For date ranges, loop through days with
+  `?dates=YYYYMMDD`. ESPN also doesn't populate future fixtures until close to
+  matchday, so empty results for dates weeks ahead are expected.
 
-## Deploy
+## Deploy configuration
 
-Cloud Run deploy is a single gcloud command with secrets from Secret Manager.
-Full command is in the README. Do NOT commit `.env` files or hardcode secrets.
+Deployed in low-cost mode: `--min-instances 0` with default CPU throttling.
+Consequences:
 
-For local dev: `uvicorn main:app` from repo root with a `.env` file present.
+- First request after idle has a cold start (container boot plus MCP
+  subprocess spawn).
+- The background reminder worker freezes between requests, so email reminders
+  are saved but not reliably sent. The planned fix is Cloud Scheduler calling
+  an endpoint periodically.
+
+The full deploy command is in the README.
+
+For local dev: `uvicorn main:app` from the repo root with a `.env` file present.
 
 ## Testing philosophy
 
@@ -132,12 +176,15 @@ JSONL. Metric computation is pure functions.
 
 ## Things NOT to do
 
-- Do NOT switch to LangChain, LlamaIndex, or other agent frameworks — the
-  custom loop is intentional
-- Do NOT add new dependencies without discussion — dependency creep is a real
-  cost in deployment size and complexity
-- Do NOT modify the MCP response parser without adding test coverage first —
-  it's fragile and has caused past bugs
-- Do NOT commit changes that touch deployment (Dockerfile, deploy scripts,
-  secrets) without explicit human review
-- Do NOT invent metrics or benchmarks that weren't actually measured
+- Do NOT run `gcloud` commands. All deployment and GCP changes are done
+  manually by the developer.
+- Do NOT switch to LangChain, LlamaIndex, or other agent frameworks; the
+  custom loop is intentional.
+- Do NOT add new dependencies without discussion.
+- Do NOT modify the MCP response parser or `mcp_error()` without adding test
+  coverage first.
+- Do NOT call Gemini without going through `generate_with_retry()`.
+- Do NOT unpin or bump `mongodb-mcp-server` without explicit discussion.
+- Do NOT commit changes that touch deployment (Dockerfile, deploy commands,
+  secrets) without explicit human review.
+- Do NOT invent metrics or benchmarks that weren't actually measured.

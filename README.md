@@ -2,7 +2,7 @@
 
 > A conversational AI agent that helps fans track teams, plan trips, predict matches, and explore host city venues during the FIFA World Cup 2026.
 
-**Live demo:** [wc2026-agent-623255749732.us-central1.run.app](https://wc2026-agent-623255749732.us-central1.run.app/)
+**Live demo:** [wc2026-agent-901040990547.us-central1.run.app](https://matchday-901040990547.us-central1.run.app/)
 
 Built for the **Google Cloud Rapid Agent Hackathon** — MongoDB partner track.
 
