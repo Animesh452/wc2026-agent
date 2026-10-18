@@ -1,13 +1,20 @@
 from google.cloud import discoveryengine_v1 as discoveryengine
 from google.cloud import storage as gcs_storage
 from dotenv import load_dotenv
+from pathlib import PurePosixPath
 import os
 
 load_dotenv()
 
-def search_venue_info(query: str) -> str:
+def retrieve_venue_docs(query: str, k: int = 5) -> list[dict]:
+    """Return the top-k Discovery Engine results for query, ranked best-first.
+
+    Each entry is {"stem": ..., "link": ...}. Results without a gs:// link are
+    kept as {"stem": None, "link": ""} so ranks stay aligned with the search.
+    Does not catch exceptions: an API failure raises rather than looking like
+    an empty result.
+    """
     search_client = discoveryengine.SearchServiceClient()
-    gcs_client = gcs_storage.Client()
 
     serving_config = (
         f"projects/{os.getenv('GCP_PROJECT_ID')}/locations/{os.getenv('DISCOVERY_ENGINE_LOCATION')}"
@@ -18,21 +25,35 @@ def search_venue_info(query: str) -> str:
     request = discoveryengine.SearchRequest(
         serving_config=serving_config,
         query=query,
-        page_size=2,
+        page_size=k,
     )
 
     response = search_client.search(request)
 
-    results = []
-    for result in response.results:
+    docs = []
+    for result in list(response.results)[:k]:
         link = result.document.derived_struct_data.get("link", "")
         if link.startswith("gs://"):
-            path = link[5:]
-            bucket_name, blob_name = path.split("/", 1)
-            blob = gcs_client.bucket(bucket_name).blob(blob_name)
-            content = blob.download_as_text()
-            results.append(content)
+            docs.append({"stem": PurePosixPath(link[5:]).stem, "link": link})
+        else:
+            docs.append({"stem": None, "link": ""})
+    return docs
 
-    if results:
-        return "\n\n---\n\n".join(results)
-    return "No venue information found for that query."
+def search_venue_info(query: str) -> str:
+    try:
+        docs = retrieve_venue_docs(query, k=2)
+        gcs_client = gcs_storage.Client()
+
+        results = []
+        for doc in docs:
+            if not doc["link"]:
+                continue
+            bucket_name, blob_name = doc["link"][5:].split("/", 1)
+            blob = gcs_client.bucket(bucket_name).blob(blob_name)
+            results.append(blob.download_as_text())
+
+        if results:
+            return "\n\n---\n\n".join(results)
+        return "No venue information found for that query."
+    except Exception as e:
+        return f"Failed to search venue info: {e}"
