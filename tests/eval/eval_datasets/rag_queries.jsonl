@@ -1,0 +1,29 @@
+{"id": "rag-001", "query": "where can i watch the game for free in miami", "relevant": ["hard_rock_stadium"], "tags": ["city-only"], "notes": "free fan zone info lives in the venue doc"}
+{"id": "rag-002", "query": "is there a fan zone in vancover", "relevant": ["bc_place"], "tags": ["city-only"], "notes": "free fan zone info lives in the venue doc"}
+{"id": "rag-003", "query": "how to reach arlington", "relevant": ["att_stadium"], "tags": ["city-only"], "notes": "getting there info lives in the venue doc"}
+{"id": "rag-004", "query": "what's there to do around the stadium in east rutherford", "relevant": ["metlife_stadium"], "tags": ["city-only"], "notes": "nearby locations info lives in the venue doc"}
+{"id": "rag-005", "query": "any pre-match activities in atlanta", "relevant": ["mercedes_benz_stadium"], "tags": ["city-only"], "notes": "pre-match activities info lives in the venue doc"}
+{"id": "rag-006", "query": "do i need jacket in santa clara", "relevant": ["levis_stadium"], "tags": ["city-only"], "notes": "temperature info lives in the venue doc"}
+{"id": "rag-007", "query": "how to reach metlife", "relevant": ["metlife_stadium"], "tags": ["direct"], "notes": ""}
+{"id": "rag-008", "query": "where is the fan zone near hard rock", "relevant": ["hard_rock_stadium"], "tags": ["direct"], "notes": ""}
+{"id": "rag-009", "query": "what to visit near estadio azteca", "relevant": ["estadio_azteca"], "tags": ["direct"], "notes": ""}
+{"id": "rag-010", "query": "can i drive to sofi stadium", "relevant": ["sofi_stadium"], "tags": ["direct"], "notes": ""}
+{"id": "rag-011", "query": "does att stadium get hot", "relevant": ["att_stadium"], "tags": ["direct"], "notes": ""}
+{"id": "rag-012", "query": "which venue might leave me out of breath", "relevant": ["estadio_azteca"], "tags": ["attribute"], "notes": "altitude warning, no city or stadium named"}
+{"id": "rag-013", "query": "which venue might require a light jacket", "relevant": ["levis_stadium"], "tags": ["attribute"], "notes": "weather - cool"}
+{"id": "rag-014", "query": "stadium where the roof lets sunlight in", "relevant": ["sofi_stadium"], "tags": ["attribute"], "notes": "roof info"}
+{"id": "rag-015", "query": "where i might require rain gear", "relevant": ["hard_rock_stadium", "estadio_azteca"], "tags": ["attribute"], "notes": "weather - rain"}
+{"id": "rag-016", "query": "which stadium won't rip me off on food and drinks", "relevant": ["mercedes_benz_stadium"], "tags": ["attribute"], "notes": "affordable concessions; avoids the doc's wording"}
+{"id": "rag-017", "query": "which stadiums have a retractable roof", "relevant": ["att_stadium", "mercedes_benz_stadium"], "tags": ["multi-venue"], "notes": ""}
+{"id": "rag-018", "query": "what places i shouldn't take a car to", "relevant": ["sofi_stadium", "estadio_azteca", "metlife_stadium"], "tags": ["multi-venue"], "notes": "docs that mention heavy traffic"}
+{"id": "rag-019", "query": "venues with 80k+ capacities", "relevant": ["att_stadium", "estadio_azteca", "metlife_stadium"], "tags": ["multi-venue"], "notes": "docs that mention 80k+ capacities, expected to fail"}
+{"id": "rag-020", "query": "when is the tournament ending", "relevant": ["world_cup_2026_overview"], "tags": ["tournament"], "notes": ""}
+{"id": "rag-021", "query": "where is the opening and final match", "relevant": ["world_cup_2026_overview", "estadio_azteca", "metlife_stadium"], "tags": ["tournament"], "notes": ""}
+{"id": "rag-022", "query": "what countries are hosting the world cup", "relevant": ["world_cup_2026_overview"], "tags": ["tournament"], "notes": ""}
+{"id": "rag-023", "query": "weather in dallas", "relevant": ["att_stadium"], "tags": ["ambiguous"], "notes": ""}
+{"id": "rag-024", "query": "where is the match in new york", "relevant": ["metlife_stadium"], "tags": ["ambiguous"], "notes": ""}
+{"id": "rag-025", "query": "how do i reach Estadio Banorte", "relevant": ["estadio_azteca"], "tags": ["ambiguous"], "notes": ""}
+{"id": "rag-026", "query": "how do i get to the stadium in kansas city", "relevant": [], "tags": ["out-of-scope"], "notes": "overview names Arrowhead but has no transit info, so no doc can answer"}
+{"id": "rag-027", "query": "where is the semi finals being held", "relevant": [], "tags": ["out-of-scope"], "notes": "docs mention knockout stages but none specifically say semifinals"}
+{"id": "rag-028", "query": "ticket prices for finals", "relevant": [], "tags": ["out-of-scope"], "notes": ""}
+{"id": "rag-029", "query": "transit to toronto stadium", "relevant": [], "tags": ["out-of-scope"], "notes": ""}
