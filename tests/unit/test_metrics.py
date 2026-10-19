@@ -1,6 +1,7 @@
 import pytest
 
 from tests.eval.metrics import (
+    abstention,
     aggregate,
     hit_rate_at_k,
     precision_at_k,
@@ -130,6 +131,7 @@ def test_aggregate():
         "recall@2": pytest.approx(0.75),
         "precision@2": pytest.approx(0.5),
         "mrr": pytest.approx(0.75),
+        "abstention_rate": 0.0,
         "n_evaluated": 2,
         "n_skipped": 1,
     }
@@ -149,6 +151,7 @@ def test_aggregate_all_skipped():
         "recall@3": None,
         "precision@3": None,
         "mrr": None,
+        "abstention_rate": pytest.approx(0.5),
         "n_evaluated": 0,
         "n_skipped": 2,
     }
@@ -157,3 +160,39 @@ def test_aggregate_all_skipped():
 def test_aggregate_invalid_k_raises_even_if_all_skipped():
     with pytest.raises(ValueError):
         aggregate([{"retrieved": ["a"], "relevant": []}], [0])
+
+
+# --- Abstention (out-of-scope queries) ---
+
+@pytest.mark.parametrize(
+    "retrieved, expected",
+    [
+        ([], 1.0),
+        ([None, None], 1.0),
+        (["a"], 0.0),
+        ([None, "a"], 0.0),
+    ],
+)
+def test_abstention(retrieved, expected):
+    assert abstention(retrieved, []) == expected
+
+
+def test_abstention_raises_for_in_scope_query():
+    with pytest.raises(ValueError):
+        abstention(["a"], ["a"])
+
+
+def test_aggregate_abstention_rate_none_without_out_of_scope():
+    cases = [{"retrieved": ["a"], "relevant": ["a"]}]
+    assert aggregate(cases, [1])["abstention_rate"] is None
+
+
+def test_aggregate_abstention_rate():
+    cases = [
+        {"retrieved": ["a"], "relevant": ["a"]},
+        {"retrieved": ["x"], "relevant": []},
+        {"retrieved": [None], "relevant": []},
+    ]
+    result = aggregate(cases, [1])
+    assert result["abstention_rate"] == pytest.approx(0.5)
+    assert result["n_skipped"] == 2

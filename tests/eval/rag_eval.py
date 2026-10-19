@@ -1,18 +1,20 @@
 """RAG retrieval eval runner.
 
 Run from the repo root:
-    python -m tests.eval.rag_eval [--limit N]
+    python -m tests.eval.rag_eval [--limit N] [--threshold LEVEL]
 
 Calls retrieve_venue_docs (the same function search_venue_info uses) for each
 query in the dataset and writes one self-contained line per query to
-tests/eval/results/<YYYYMMDD-HHMMSS>_rag/raw.jsonl. Queries whose retrieval
-raised are recorded with an error and excluded from all averages.
+tests/eval/results/<YYYYMMDD-HHMMSS>_rag_<threshold>/raw.jsonl. Queries whose
+retrieval raised are recorded with an error and excluded from all averages.
 """
 
 import argparse
 import json
 from datetime import datetime
 from pathlib import Path
+
+from google.cloud import discoveryengine_v1 as discoveryengine
 
 from tests.eval.metrics import aggregate
 from tools.venues import retrieve_venue_docs
@@ -22,6 +24,10 @@ RESULTS_DIR = Path("tests/eval/results")
 RETRIEVAL_K = 5
 KS = [1, 2, 3, 5]
 REQUIRED_FIELDS = ("id", "query", "relevant")
+THRESHOLD_LEVELS = [
+    name for name in discoveryengine.SearchRequest.RelevanceThreshold.__members__
+    if name != "RELEVANCE_THRESHOLD_UNSPECIFIED"
+]
 
 
 def load_dataset(path: Path) -> list[dict]:
@@ -39,19 +45,20 @@ def load_dataset(path: Path) -> list[dict]:
     return cases
 
 
-def run_case(case: dict) -> dict:
+def run_case(case: dict, threshold: str | None) -> dict:
     record = {
         "id": case["id"],
         "query": case["query"],
         "relevant": case["relevant"],
         "tags": case["tags"],
         "retrieval_k": RETRIEVAL_K,
+        "relevance_threshold": threshold or "default",
         "retrieved": [],
         "links": [],
         "error": None,
     }
     try:
-        docs = retrieve_venue_docs(case["query"], k=RETRIEVAL_K)
+        docs = retrieve_venue_docs(case["query"], k=RETRIEVAL_K, relevance_threshold=threshold)
         record["retrieved"] = [doc["stem"] for doc in docs]
         record["links"] = [doc["link"] for doc in docs]
     except Exception as e:
@@ -81,7 +88,7 @@ def compute_groups(records: list[dict]) -> dict[str, dict]:
 
 
 def print_table(results: dict[str, dict]) -> None:
-    metric_rows = [f"{m}@{k}" for m in ("hit_rate", "recall", "precision") for k in KS] + ["mrr"]
+    metric_rows = [f"{m}@{k}" for m in ("hit_rate", "recall", "precision") for k in KS] + ["mrr", "abstention_rate"]
     count_rows = [("n_evaluated", "evaluated"), ("n_skipped", "out-of-scope"), ("n_errored", "errored")]
 
     columns = list(results)
@@ -103,23 +110,34 @@ def print_table(results: dict[str, dict]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the RAG retrieval eval.")
     parser.add_argument("--limit", type=int, default=None, help="only run the first N queries")
+    parser.add_argument(
+        "--threshold",
+        type=str.upper,
+        choices=THRESHOLD_LEVELS,
+        default=None,
+        help="Discovery Engine relevance threshold; omit for the API default",
+    )
     args = parser.parse_args()
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be at least 1")
+    threshold_label = args.threshold or "default"
 
     cases = load_dataset(DATASET_PATH)
     if args.limit is not None:
         cases = cases[: args.limit]
 
-    run_dir = RESULTS_DIR / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_rag"
+    run_dir = RESULTS_DIR / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_rag_{threshold_label.lower()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     raw_path = run_dir / "raw.jsonl"
 
-    print(f"Running {len(cases)} queries from {DATASET_PATH} (retrieval k={RETRIEVAL_K})")
+    print(
+        f"Running {len(cases)} queries from {DATASET_PATH} "
+        f"(retrieval k={RETRIEVAL_K}, threshold={threshold_label})"
+    )
     records = []
     with raw_path.open("w", encoding="utf-8") as raw_file:
         for i, case in enumerate(cases, start=1):
-            record = run_case(case)
+            record = run_case(case, args.threshold)
             records.append(record)
             raw_file.write(json.dumps(record, ensure_ascii=False) + "\n")
             raw_file.flush()
@@ -131,7 +149,7 @@ def main() -> None:
                 top = record["retrieved"][0] if record["retrieved"] else "(no results)"
                 print(f"{prefix} ok  top: {top}")
 
-    print()
+    print(f"\nthreshold={threshold_label}")
     print_table(compute_groups(records))
     print()
     print("precision@k always divides by k, even when fewer than k docs were retrieved.")

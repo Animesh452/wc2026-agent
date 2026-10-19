@@ -6,11 +6,13 @@ import os
 
 load_dotenv()
 
-def retrieve_venue_docs(query: str, k: int = 5) -> list[dict]:
+def retrieve_venue_docs(query: str, k: int = 5, relevance_threshold: str | None = None) -> list[dict]:
     """Return the top-k Discovery Engine results for query, ranked best-first.
 
     Each entry is {"stem": ..., "link": ...}. Results without a gs:// link are
     kept as {"stem": None, "link": ""} so ranks stay aligned with the search.
+    relevance_threshold is a SearchRequest.RelevanceThreshold name (e.g. "LOW");
+    when None, the field is not set and the API default applies.
     Does not catch exceptions: an API failure raises rather than looking like
     an empty result.
     """
@@ -22,11 +24,14 @@ def retrieve_venue_docs(query: str, k: int = 5) -> list[dict]:
         f"/servingConfigs/default_config"
     )
 
-    request = discoveryengine.SearchRequest(
-        serving_config=serving_config,
-        query=query,
-        page_size=k,
-    )
+    request_kwargs = {
+        "serving_config": serving_config,
+        "query": query,
+        "page_size": k,
+    }
+    if relevance_threshold is not None:
+        request_kwargs["relevance_threshold"] = discoveryengine.SearchRequest.RelevanceThreshold[relevance_threshold]
+    request = discoveryengine.SearchRequest(**request_kwargs)
 
     response = search_client.search(request)
 

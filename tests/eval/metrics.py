@@ -50,19 +50,29 @@ def reciprocal_rank(retrieved: list[str | None], relevant: list[str]) -> float:
     return 0.0
 
 
+def abstention(retrieved: list[str | None], relevant: list[str]) -> float:
+    """1.0 if an out-of-scope query retrieved no non-None results, else 0.0."""
+    if relevant:
+        raise ValueError("abstention only applies to out-of-scope queries (empty relevant)")
+    return 0.0 if any(stem is not None for stem in retrieved) else 1.0
+
+
 def aggregate(cases: list[dict], ks: list[int]) -> dict:
     """Average per-query metrics over cases.
 
     Each case is {"retrieved": [...], "relevant": [...]}. Cases with empty
-    relevant (out-of-scope queries) are skipped and counted in n_skipped.
-    If no cases are evaluated, every metric is None.
+    relevant (out-of-scope queries) are skipped from the retrieval metrics and
+    counted in n_skipped; abstention_rate is averaged over those cases only.
+    If no cases are evaluated, every retrieval metric is None; if there are no
+    out-of-scope cases, abstention_rate is None.
     """
     for k in ks:
         _validate_k(k)
 
     evaluated = [c for c in cases if c["relevant"]]
+    out_of_scope = [c for c in cases if not c["relevant"]]
     n_evaluated = len(evaluated)
-    n_skipped = len(cases) - n_evaluated
+    n_skipped = len(out_of_scope)
 
     def mean(values: list[float]) -> float | None:
         return sum(values) / len(values) if values else None
@@ -73,6 +83,7 @@ def aggregate(cases: list[dict], ks: list[int]) -> dict:
         result[f"recall@{k}"] = mean([recall_at_k(c["retrieved"], c["relevant"], k) for c in evaluated])
         result[f"precision@{k}"] = mean([precision_at_k(c["retrieved"], c["relevant"], k) for c in evaluated])
     result["mrr"] = mean([reciprocal_rank(c["retrieved"], c["relevant"]) for c in evaluated])
+    result["abstention_rate"] = mean([abstention(c["retrieved"], c["relevant"]) for c in out_of_scope])
     result["n_evaluated"] = n_evaluated
     result["n_skipped"] = n_skipped
     return result
