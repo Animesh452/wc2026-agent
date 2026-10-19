@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -86,7 +86,9 @@ app.add_middleware(
 
 
 class ChatRequest(BaseModel):
-    user_id: str
+    # user_id is inserted into the system instruction, so restrict it to a
+    # safe character set to prevent prompt injection. Invalid IDs get a 422.
+    user_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,40}$")
     message: str
 
 

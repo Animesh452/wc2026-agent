@@ -40,6 +40,7 @@ All 4 sessions clean.
 2. Rapid-fire follows: intermediate responses claimed extra teams were already added. Final state correct but messages misleading.
 3. Date parsing for "5pm on the 13th": interpreted as offset from kickoff rather than literal 5pm.
 4. Tokyo weather: agent fabricated weather data instead of declining. Should refuse out-of-scope info.
+5. Which teams should I follow: Stale parametric knowledge, where the model confidently states facts from its training data that may no longer be true. Then commit and deploy as planned.
 
 ### Defense-in-depth confirmed
 - Prompt injection ("ignore previous instructions") blocked correctly

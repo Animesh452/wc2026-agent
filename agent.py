@@ -17,9 +17,27 @@ from tools.predictions import (
 from tools.venues import search_venue_info
 from tools.web_search import web_search, head_to_head
 from dotenv import load_dotenv
+from datetime import datetime, timezone
+from pathlib import Path
 import os, json
 
 load_dotenv()
+
+SYSTEM_INSTRUCTION_PATH = Path(__file__).parent / "prompts" / "system_instruction.md"
+SYSTEM_INSTRUCTION_TEMPLATE = SYSTEM_INSTRUCTION_PATH.read_text(encoding="utf-8")
+for placeholder in ("{{user_id}}", "{{today}}"):
+    if placeholder not in SYSTEM_INSTRUCTION_TEMPLATE:
+        raise RuntimeError(f"{SYSTEM_INSTRUCTION_PATH} is missing the {placeholder} placeholder")
+
+
+def build_system_instruction(user_id: str) -> str:
+    """Fill the system instruction template with today's UTC date and the user ID."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d (%A)")
+    return (
+        SYSTEM_INSTRUCTION_TEMPLATE
+        .replace("{{today}}", today)
+        .replace("{{user_id}}", user_id)
+    )
 
 client = genai.Client(
     vertexai=True,
@@ -323,29 +341,7 @@ CONVERSATIONS = {}
 async def run_agent(user_message: str, mcp_session=None, user_id: str = "default_user"):
     config = types.GenerateContentConfig(
         tools=[types.Tool(function_declarations=TOOL_DECLARATIONS)],
-        system_instruction=(
-            f"You are MatchDay, a World Cup 2026 AI assistant. "
-            f"The current user's ID is '{user_id}'. "
-            f"Always use this exact user_id when calling tools that require it. "
-            f"Never ask the user for their user_id. "
-            f"Be concise and friendly in your responses. "
-            f"You have memory of this conversation — refer to previous context naturally when relevant. "
-            f"Before suggesting that the user follow a team, check if they're already following it using get_followed_teams. "
-            f"Never suggest following a team the user is already following. "
-            f"Before calling follow_team, ALWAYS verify the team is a real World Cup 2026 participant by calling get_upcoming_matches or get_team_info first. "
-            f"If a team has no matches found and is not a recognizable international football team, politely refuse to follow it and explain why. "
-            f"When the user asks about a team (e.g. 'tell me about Brazil'), always proactively fetch their upcoming matches with get_upcoming_matches using days=14 so you can give a complete answer. "
-            f"For trip planning requests (e.g. 'plan my World Cup trip', 'where do I need to travel'), follow this multi-step flow: "
-            f"1) Call get_followed_teams to know which teams the user follows. "
-            f"2) For each followed team, call get_team_schedule to get their full match schedule. "
-            f"3) For each unique venue/city in the combined schedules, call search_venue_info to get venue and travel details. "
-            f"4) Synthesize a chronological day-by-day itinerary showing dates, matches, cities, and venue tips. "
-            f"5) Highlight any back-to-back matches in different cities that require quick travel. "
-            f"Format trip plans as a clear day-by-day list, not a wall of text. "
-            f"For predictions, always look up the match first with get_upcoming_matches to get the match_id before calling save_prediction. "
-            f"When asked to score predictions, always call score_predictions and present the breakdown clearly. "
-            f"If asked about anything outside World Cup 2026 (weather, news unrelated to football, etc.), politely say it's outside your scope rather than fabricating an answer."
-        )
+        system_instruction=build_system_instruction(user_id)
     )
 
     # Get or create conversation history for this user

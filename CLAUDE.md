@@ -4,9 +4,15 @@ Conversational AI agent for global football, deployed at
 https://matchday-901040990547.us-central1.run.app
 
 Originally built as a World Cup 2026 assistant for the Google Cloud Rapid Agent
-Hackathon (MongoDB partner track). Being expanded to support multiple
-tournaments: World Cup 2026 (recap mode), UEFA Champions League 2026-27,
-Premier League 2026-27.
+Hackathon (MongoDB partner track). Now a general football companion: it answers
+questions about any league, club, national team, player, or transfer, using
+structured tools where they exist and web search for everything else. The
+World Cup 2026 is a completed tournament (June 11 to July 19, 2026). Live
+fixtures for UEFA Champions League 2026-27 and Premier League 2026-27 are
+planned.
+
+The live app is a public portfolio demo, so first-time visitors must get
+useful answers without setup.
 
 ## Architecture
 
@@ -28,6 +34,7 @@ currently doesn't fire reliably.
 matchday/
 ├── main.py # FastAPI app, lifespan, routes
 ├── agent.py # Gemini tool-calling loop, tool declarations
+├── prompts/ # System instruction template (Markdown)
 ├── tools/ # Tool implementations
 ├── static/ # Chat UI + bracket page
 ├── venue_docs/ # Source docs for Discovery Engine
@@ -98,6 +105,20 @@ Follow the `agent-tools` skill in `.claude/skills/agent-tools/SKILL.md`.
   (e.g. a function call with no function response) makes Gemini reject every
   later message from that user.
 
+### System instruction
+
+- Lives in `prompts/system_instruction.md`, not in `agent.py`. It's loaded
+  once at import and filled per request by `build_system_instruction()`,
+  which replaces `{{user_id}}` and `{{today}}` (UTC date, e.g.
+  `2026-10-18 (Sunday)`). Import fails if the file or a placeholder is
+  missing, so a broken prompt can't ship silently.
+- The model gets today's date from `{{today}}`, never from its training data.
+  Don't hardcode facts that tools or web search should provide (e.g. the
+  World Cup winner).
+- `user_id` is inserted into the prompt, so `ChatRequest` in `main.py`
+  restricts it to `[A-Za-z0-9_-]{1,40}` (422 otherwise). Keep that validation
+  if the request model changes.
+
 ### Tool call logging
 
 Every tool call prints `  → calling tool_name({args})` inside the agent loop.
@@ -142,6 +163,12 @@ Keep this format; it's used for grep-based log analysis.
   matchday by default. For date ranges, loop through days with
   `?dates=YYYYMMDD`. ESPN also doesn't populate future fixtures until close to
   matchday, so empty results for dates weeks ahead are expected.
+
+- **ESPN tools are World Cup-only.** `tools/espn.py` uses the `fifa.world`
+  league and looks at windows relative to today (`get_recent_results` looks
+  back 14 days). Since the tournament is over, the match, results, schedule
+  and standings tools return nothing; World Cup results come from
+  `web_search`.
 
 - **Venue retrieval uses `relevance_threshold="LOWEST"` on purpose.** The
   default threshold discarded correct results for 9 of 24 answerable eval

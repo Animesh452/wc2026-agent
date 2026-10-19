@@ -98,7 +98,7 @@ The model chooses tools from the name and description alone.
 
 ## System instruction
 
-Only update the system instruction in `run_agent` when the tool needs
+Only update the system instruction in `prompts/system_instruction.md` when the tool needs
 behavioral rules the description can't express, such as ordering ("look up
 the match_id with get_upcoming_matches before calling save_prediction") or
 validation ("verify the team exists before follow_team"). Keep additions to
