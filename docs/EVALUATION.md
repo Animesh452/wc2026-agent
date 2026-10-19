@@ -145,13 +145,15 @@ Observations:
 
 ## Decision: use `LOWEST` in production
 
-**Status:** decided; to be applied in `search_venue_info`.
+**Status:** applied in `search_venue_info` and deployed.
 
 `LOWEST` raises production-relevant hit@2 from 0.583 to 0.917, at the cost of abstention dropping from 0.25 to 0.
 
 The reasoning goes beyond the numbers. In this architecture the retriever is not the last line of defense: Gemini reads the retrieved documents, and the system instruction tells it to refuse out-of-scope questions rather than fabricate. Abstention is therefore delegated to the model, and the retriever is optimized for recall.
 
 **Accepted risk:** for out-of-scope questions, Gemini now always receives two documents, which may be irrelevant. For example, a question about transit to Toronto's stadium could receive the MetLife document, and the model could misapply its transit details. This needs answer-level verification (see [Next steps](#next-steps)).
+
+**Post-deployment spot check.** Three out-of-scope questions were asked on the live agent (transit to the Toronto and Kansas City stadiums, and semifinal venues). In none did the agent present another venue's details as an answer. Logs show that for Toronto and Kansas City it queried the knowledge base first, judged the results irrelevant, and fell back to `web_search`; for the semifinals it went to `web_search` directly. This supports delegating abstention to the model, though it's three queries, not a measurement. Toronto took four reworded knowledge base queries before falling back, adding latency.
 
 ## Remaining misses at `LOWEST`
 
