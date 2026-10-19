@@ -143,6 +143,11 @@ Keep this format; it's used for grep-based log analysis.
   `?dates=YYYYMMDD`. ESPN also doesn't populate future fixtures until close to
   matchday, so empty results for dates weeks ahead are expected.
 
+- **Venue retrieval uses `relevance_threshold="LOWEST"` on purpose.** The
+  default threshold discarded correct results for 9 of 24 answerable eval
+  queries. Abstention for out-of-scope questions is left to Gemini, not the
+  retriever. See `docs/EVALUATION.md` before changing it.
+
 ## Deploy configuration
 
 Deployed in low-cost mode: `--min-instances 0` with default CPU throttling.

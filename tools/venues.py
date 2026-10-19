@@ -46,7 +46,9 @@ def retrieve_venue_docs(query: str, k: int = 5, relevance_threshold: str | None 
 
 def search_venue_info(query: str) -> str:
     try:
-        docs = retrieve_venue_docs(query, k=2)
+        # LOWEST chosen from the relevance threshold sweep in docs/EVALUATION.md:
+        # the default threshold discarded correct results for short queries.
+        docs = retrieve_venue_docs(query, k=2, relevance_threshold="LOWEST")
         gcs_client = gcs_storage.Client()
 
         results = []
