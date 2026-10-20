@@ -1,0 +1,347 @@
+{
+ "_note": "Real ESPN fifa.world scoreboard events, trimmed to the fields scripts/snapshot_world_cup.py parses.",
+ "events": [
+  {
+   "id": "760428",
+   "date": "2026-06-15T16:00Z",
+   "name": "Cape Verde at Spain",
+   "season": {
+    "year": 2026,
+    "type": 13802,
+    "slug": "group-stage"
+   },
+   "competitions": [
+    {
+     "id": "760428",
+     "date": "2026-06-15T16:00Z",
+     "status": {
+      "clock": 5400.0,
+      "displayClock": "90'+5'",
+      "period": 2,
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "venue": {
+      "id": "7485",
+      "fullName": "Mercedes-Benz Stadium",
+      "address": {
+       "city": "Atlanta, Georgia",
+       "country": "USA"
+      }
+     },
+     "group": {
+      "groupId": "8",
+      "name": "Group H",
+      "abbreviation": "Group H"
+     },
+     "notes": [],
+     "altGameNote": "FIFA World Cup, Group H",
+     "competitors": [
+      {
+       "id": "164",
+       "homeAway": "home",
+       "winner": false,
+       "score": "0",
+       "team": {
+        "id": "164",
+        "displayName": "Spain",
+        "abbreviation": "ESP"
+       }
+      },
+      {
+       "id": "2597",
+       "homeAway": "away",
+       "winner": false,
+       "score": "0",
+       "team": {
+        "id": "2597",
+        "displayName": "Cape Verde",
+        "abbreviation": "CPV"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "760427",
+   "date": "2026-06-16T01:00Z",
+   "name": "New Zealand at Iran",
+   "season": {
+    "year": 2026,
+    "type": 13802,
+    "slug": "group-stage"
+   },
+   "competitions": [
+    {
+     "id": "760427",
+     "date": "2026-06-16T01:00Z",
+     "status": {
+      "clock": 5400.0,
+      "displayClock": "90'+5'",
+      "period": 2,
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "venue": {
+      "id": "9115",
+      "fullName": "SoFi Stadium",
+      "address": {
+       "city": "Inglewood, California",
+       "country": "USA"
+      }
+     },
+     "group": {
+      "groupId": "7",
+      "name": "Group G",
+      "abbreviation": "Group G"
+     },
+     "notes": [],
+     "altGameNote": "FIFA World Cup, Group G",
+     "competitors": [
+      {
+       "id": "469",
+       "homeAway": "home",
+       "winner": false,
+       "score": "2",
+       "team": {
+        "id": "469",
+        "displayName": "Iran",
+        "abbreviation": "IRN"
+       }
+      },
+      {
+       "id": "2666",
+       "homeAway": "away",
+       "winner": false,
+       "score": "2",
+       "team": {
+        "id": "2666",
+        "displayName": "New Zealand",
+        "abbreviation": "NZL"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "760490",
+   "date": "2026-06-30T17:00Z",
+   "name": "Norway at Ivory Coast",
+   "season": {
+    "year": 2026,
+    "type": 13801,
+    "slug": "round-of-32"
+   },
+   "competitions": [
+    {
+     "id": "760490",
+     "date": "2026-06-30T17:00Z",
+     "status": {
+      "clock": 5400.0,
+      "displayClock": "90'+8'",
+      "period": 2,
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "venue": {
+      "id": "3871",
+      "fullName": "AT&T Stadium",
+      "address": {
+       "city": "Arlington, Texas",
+       "country": "USA"
+      }
+     },
+     "notes": [],
+     "altGameNote": "FIFA World Cup, Round of 32",
+     "competitors": [
+      {
+       "id": "4789",
+       "homeAway": "home",
+       "winner": false,
+       "advance": false,
+       "score": "1",
+       "team": {
+        "id": "4789",
+        "displayName": "Ivory Coast",
+        "abbreviation": "CIV"
+       }
+      },
+      {
+       "id": "464",
+       "homeAway": "away",
+       "winner": true,
+       "advance": true,
+       "score": "2",
+       "team": {
+        "id": "464",
+        "displayName": "Norway",
+        "abbreviation": "NOR"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "760489",
+   "date": "2026-06-29T20:30Z",
+   "name": "Paraguay at Germany",
+   "season": {
+    "year": 2026,
+    "type": 13801,
+    "slug": "round-of-32"
+   },
+   "competitions": [
+    {
+     "id": "760489",
+     "date": "2026-06-29T20:30Z",
+     "status": {
+      "clock": 7200.0,
+      "displayClock": "120'",
+      "period": 5,
+      "type": {
+       "id": "47",
+       "name": "STATUS_FINAL_PEN",
+       "state": "post",
+       "completed": true,
+       "description": "Final Score - After Penalties",
+       "detail": "FT-Pens",
+       "shortDetail": "FT-Pens"
+      }
+     },
+     "venue": {
+      "id": "10660",
+      "fullName": "Gillette Stadium",
+      "address": {
+       "city": "Foxborough, Massachusetts",
+       "country": "USA"
+      }
+     },
+     "notes": [
+      {
+       "text": "Paraguay advance 4-3 on penalties",
+       "headline": "Paraguay advance 4-3 on penalties",
+       "type": "event"
+      }
+     ],
+     "altGameNote": "FIFA World Cup, Round of 32",
+     "competitors": [
+      {
+       "id": "481",
+       "homeAway": "home",
+       "winner": false,
+       "advance": false,
+       "score": "1",
+       "shootoutScore": 3,
+       "team": {
+        "id": "481",
+        "displayName": "Germany",
+        "abbreviation": "GER"
+       }
+      },
+      {
+       "id": "210",
+       "homeAway": "away",
+       "winner": true,
+       "advance": true,
+       "score": "1",
+       "shootoutScore": 4,
+       "team": {
+        "id": "210",
+        "displayName": "Paraguay",
+        "abbreviation": "PAR"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "760517",
+   "date": "2026-07-19T19:00Z",
+   "name": "Argentina at Spain",
+   "season": {
+    "year": 2026,
+    "type": 13803,
+    "slug": "final"
+   },
+   "competitions": [
+    {
+     "id": "760517",
+     "date": "2026-07-19T19:00Z",
+     "status": {
+      "clock": 7200.0,
+      "displayClock": "120'+5'",
+      "period": 4,
+      "type": {
+       "id": "45",
+       "name": "STATUS_FINAL_AET",
+       "state": "post",
+       "completed": true,
+       "description": "Final Score - After Extra Time",
+       "detail": "AET",
+       "shortDetail": "AET"
+      }
+     },
+     "venue": {
+      "id": "4727",
+      "fullName": "MetLife Stadium",
+      "address": {
+       "city": "East Rutherford, New Jersey",
+       "country": "USA"
+      }
+     },
+     "notes": [],
+     "altGameNote": "FIFA World Cup, Final",
+     "competitors": [
+      {
+       "id": "164",
+       "homeAway": "home",
+       "winner": true,
+       "score": "1",
+       "team": {
+        "id": "164",
+        "displayName": "Spain",
+        "abbreviation": "ESP"
+       }
+      },
+      {
+       "id": "202",
+       "homeAway": "away",
+       "winner": false,
+       "score": "0",
+       "team": {
+        "id": "202",
+        "displayName": "Argentina",
+        "abbreviation": "ARG"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -16,6 +16,7 @@ from tools.predictions import (
 )
 from tools.venues import search_venue_info
 from tools.web_search import web_search, head_to_head
+from tools.world_cup import get_world_cup_results, STAGE_FILTERS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 from pathlib import Path
@@ -107,6 +108,29 @@ TOOL_DECLARATIONS = [
                 "team": {"type": "string", "description": "Team name"}
             },
             "required": ["team"]
+        }
+    ),
+    types.FunctionDeclaration(
+        name="get_world_cup_results",
+        description=(
+            "Results of the completed FIFA World Cup 2026 (June 11 to July 19, 2026): all 104 matches "
+            "with date, stage, score, extra time or penalties, winner, and venue. With a team, also "
+            "returns how far that team got. Use for who won the World Cup (stage='final'), how a team "
+            "did (team='Brazil'), a round's results, or the knockout path (stage='knockout'). "
+            "Prefer filtering by team or stage over fetching everything. "
+            "Not for goal scorers, player stats, lineups, or group standings: use web_search for those. "
+            "Not for upcoming fixtures."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "team": {"type": "string", "description": "National team name, e.g. 'Brazil', 'United States' (optional)"},
+                "stage": {
+                    "type": "string",
+                    "enum": STAGE_FILTERS,
+                    "description": "Stage filter (optional). 'knockout' means every match after the group stage.",
+                },
+            },
         }
     ),
     types.FunctionDeclaration(
@@ -317,6 +341,7 @@ SYNC_TOOLS = {
     "get_team_schedule": get_team_schedule,
     "web_search": web_search,
     "head_to_head": head_to_head,
+    "get_world_cup_results": get_world_cup_results,
 }
 
 ASYNC_TOOLS = {

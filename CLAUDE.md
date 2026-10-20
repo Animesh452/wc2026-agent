@@ -20,6 +20,8 @@ Single FastAPI service on Cloud Run wrapping a custom Python tool-calling loop
 against Gemini via Vertex AI. Tools split into four categories:
 
 - **ESPN API** — live match data (schedules, results, standings)
+- **Static snapshot** — World Cup 2026 results (`data/world_cup_2026.json`),
+  read by `get_world_cup_results` in `tools/world_cup.py`
 - **MongoDB MCP** — user state (follows, reminders, predictions) via the
   MongoDB MCP server (Node.js subprocess spawned at app startup)
 - **Discovery Engine** — RAG-based venue knowledge (Google Cloud AI Applications)
@@ -36,6 +38,7 @@ matchday/
 ├── agent.py # Gemini tool-calling loop, tool declarations
 ├── prompts/ # System instruction template (Markdown)
 ├── tools/ # Tool implementations
+├── data/ # Static snapshots read at runtime (World Cup 2026 results)
 ├── static/ # Chat UI + bracket page
 ├── venue_docs/ # Source docs for Discovery Engine
 ├── tests/ # Structured tests (unit, integration, agent, eval)
@@ -167,8 +170,17 @@ Keep this format; it's used for grep-based log analysis.
 - **ESPN tools are World Cup-only.** `tools/espn.py` uses the `fifa.world`
   league and looks at windows relative to today (`get_recent_results` looks
   back 14 days). Since the tournament is over, the match, results, schedule
-  and standings tools return nothing; World Cup results come from
-  `web_search`.
+  and standings tools return nothing. World Cup results come from the static
+  snapshot via `get_world_cup_results`; scorers, stats and group standings
+  come from `web_search`. Don't recompute group standings from results (FIFA
+  tiebreakers are out of scope).
+
+- **World Cup snapshot.** `data/world_cup_2026.json` is built by
+  `python -m scripts.snapshot_world_cup`, which only writes the file if it
+  parses exactly 104 matches and every winner matches ESPN's `winner` flag.
+  The tool reads it at runtime, so `data/` must stay out of `.dockerignore`.
+  The frontend results page should reuse this file. Match `date` is the US
+  Eastern date (how ESPN groups matchdays); `kickoff_utc` is exact.
 
 - **Venue retrieval uses `relevance_threshold="LOWEST"` on purpose.** The
   default threshold discarded correct results for 9 of 24 answerable eval

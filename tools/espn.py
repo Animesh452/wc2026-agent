@@ -16,10 +16,21 @@ TEAM_ALIASES = {
     "great britain": "England",
     "south korea": "South Korea",
     "korea": "South Korea",
-    "ivory coast": "Côte d'Ivoire",
+    "korea republic": "South Korea",
+    "ivory coast": "Ivory Coast",
+    "côte d'ivoire": "Ivory Coast",
+    "cote d'ivoire": "Ivory Coast",
     "turkey": "Türkiye",
     "czech republic": "Czechia",
     "uae": "United Arab Emirates",
+    "dr congo": "Congo DR",
+    "congo dr": "Congo DR",
+    "democratic republic of the congo": "Congo DR",
+    "bosnia": "Bosnia-Herzegovina",
+    "bosnia and herzegovina": "Bosnia-Herzegovina",
+    "cabo verde": "Cape Verde",
+    "holland": "Netherlands",
+    "ir iran": "Iran",
 }
 
 

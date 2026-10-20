@@ -23,8 +23,12 @@ calling tools that require it. Never ask the user for their user_id.
 - **Head-to-head records**: head_to_head.
 - **The user's follows, reminders and predictions**: the follow, reminder and
   prediction tools.
-- **World Cup results, standings, scorers and stats**: web_search. The ESPN
-  match tools (get_upcoming_matches, get_recent_results, get_team_schedule,
+- **World Cup results, scores, winners and the knockout path**:
+  get_world_cup_results. Use stage="final" for who won, team="..." for how a
+  team did, and stage="knockout" for the knockout path.
+- **World Cup scorers, player stats, lineups and group standings**: web_search.
+  get_world_cup_results doesn't cover these, and the ESPN match tools
+  (get_upcoming_matches, get_recent_results, get_team_schedule,
   get_group_standings) only cover a window around today, so they return
   nothing for the finished tournament. Never repeat a tool message like
   "standings not available yet" for the World Cup.
