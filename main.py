@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Path
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
@@ -8,6 +8,8 @@ from mcp.client.stdio import stdio_client
 from agent import run_agent
 from tools.mongodb_mcp import get_followed_teams, get_reminders
 from tools.reminder_worker import reminder_worker
+from tools.world_cup import load_matches
+from results import build_results_view
 from dotenv import load_dotenv
 import os, sys, asyncio
 
@@ -85,16 +87,20 @@ app.add_middleware(
 )
 
 
+# user_id is inserted into the system instruction, so restrict it to a safe
+# character set to prevent prompt injection. Invalid IDs get a 422. The
+# frontend's guest IDs (g_ + UUID v4) match this pattern.
+USER_ID_PATTERN = r"^[A-Za-z0-9_-]{1,40}$"
+
+
 class ChatRequest(BaseModel):
-    # user_id is inserted into the system instruction, so restrict it to a
-    # safe character set to prevent prompt injection. Invalid IDs get a 422.
-    user_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,40}$")
+    user_id: str = Field(pattern=USER_ID_PATTERN)
     message: str
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    with open("static/index.html") as f:
+    with open("static/index.html", encoding="utf-8") as f:
         return f.read()
 
 
@@ -113,13 +119,13 @@ async def chat(request: ChatRequest):
 
 
 @app.get("/user/{user_id}/teams")
-async def get_teams(user_id: str):
+async def get_teams(user_id: str = Path(pattern=USER_ID_PATTERN)):
     result = await get_followed_teams(mcp_session, user_id)
     return result
 
 
 @app.get("/user/{user_id}/reminders")
-async def get_user_reminders(user_id: str):
+async def get_user_reminders(user_id: str = Path(pattern=USER_ID_PATTERN)):
     result = await get_reminders(mcp_session, user_id)
     return result
 
@@ -129,24 +135,22 @@ async def clear_conversation(user_id: str):
     CONVERSATIONS.pop(user_id, None)
     return {"cleared": True}
 
-@app.get("/bracket", response_class=HTMLResponse)
-async def bracket():
-    with open("static/bracket.html") as f:
+@app.get("/results", response_class=HTMLResponse)
+async def results_page():
+    with open("static/results.html", encoding="utf-8") as f:
         return f.read()
 
 
-@app.get("/api/bracket-data")
-async def bracket_data():
-    from tools.espn import get_upcoming_matches
-    matches = get_upcoming_matches(days=40)
-    if isinstance(matches, str):
-        return {"matches": []}
-    
-    grouped = {}
-    for m in matches:
-        date_key = m.get("date", "")[:10]
-        if date_key not in grouped:
-            grouped[date_key] = []
-        grouped[date_key].append(m)
-    
-    return {"matches": matches, "by_date": grouped}
+@app.get("/bracket")
+async def bracket_redirect():
+    # Old URL for the results page; kept so existing links still work.
+    return RedirectResponse("/results", status_code=301)
+
+
+@app.get("/api/world-cup-results")
+async def world_cup_results():
+    try:
+        return build_results_view(load_matches())
+    except Exception as e:
+        print(f"  /api/world-cup-results failed: {e}")
+        raise HTTPException(status_code=503, detail="World Cup results are unavailable right now.")

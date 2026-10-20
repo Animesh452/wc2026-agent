@@ -1,10 +1,12 @@
-# MatchDay — World Cup 2026 AI Assistant
+# MatchDay — Your AI football companion
 
-> A conversational AI agent that helps fans track teams, plan trips, predict matches, and explore host city venues during the FIFA World Cup 2026.
+> A conversational AI agent for football fans: a full recap of the FIFA World Cup 2026, answers to questions about any league, club, player or transfer via live web search, team following, and guides to the World Cup host stadiums.
 
-**Live demo:** [wc2026-agent-901040990547.us-central1.run.app](https://matchday-901040990547.us-central1.run.app/)
+**Live demo:** [matchday-901040990547.us-central1.run.app](https://matchday-901040990547.us-central1.run.app/)
 
-Built for the **Google Cloud Rapid Agent Hackathon** — MongoDB partner track.
+Originally built for the **Google Cloud Rapid Agent Hackathon** (MongoDB partner track) as a World Cup 2026 assistant, now expanding into a general football companion. Live fixtures, reminders and predictions for more competitions are coming soon.
+
+> **Demo note:** there's no authentication. Each visitor gets a random guest ID stored in their browser, but the ID is just a label: anyone who knows it can see and change what it follows. Don't put personal information in it.
 
 ---
 

@@ -39,7 +39,8 @@ matchday/
 ├── prompts/ # System instruction template (Markdown)
 ├── tools/ # Tool implementations
 ├── data/ # Static snapshots read at runtime (World Cup 2026 results)
-├── static/ # Chat UI + bracket page
+├── results.py # Shapes the World Cup snapshot for the results page
+├── static/ # Chat UI (index.html) + World Cup results page (results.html)
 ├── venue_docs/ # Source docs for Discovery Engine
 ├── tests/ # Structured tests (unit, integration, agent, eval)
 ├── scripts/ # Diagnostic and utility scripts
@@ -119,8 +120,10 @@ Follow the `agent-tools` skill in `.claude/skills/agent-tools/SKILL.md`.
   Don't hardcode facts that tools or web search should provide (e.g. the
   World Cup winner).
 - `user_id` is inserted into the prompt, so `ChatRequest` in `main.py`
-  restricts it to `[A-Za-z0-9_-]{1,40}` (422 otherwise). Keep that validation
-  if the request model changes.
+  restricts it to `USER_ID_PATTERN`, `[A-Za-z0-9_-]{1,40}` (422 otherwise).
+  The `/user/{user_id}/...` sidebar routes use the same pattern, and the
+  frontend's guest IDs (`g_` + UUID v4, 38 characters) must keep matching it.
+  Keep that validation if the request model changes.
 
 ### Tool call logging
 
@@ -179,7 +182,8 @@ Keep this format; it's used for grep-based log analysis.
   `python -m scripts.snapshot_world_cup`, which only writes the file if it
   parses exactly 104 matches and every winner matches ESPN's `winner` flag.
   The tool reads it at runtime, so `data/` must stay out of `.dockerignore`.
-  The frontend results page should reuse this file. Match `date` is the US
+  The results page (`/results`) reads it through `/api/world-cup-results`,
+  which `results.py` shapes into bracket order. Match `date` is the US
   Eastern date (how ESPN groups matchdays); `kickoff_utc` is exact.
 
 - **Venue retrieval uses `relevance_threshold="LOWEST"` on purpose.** The

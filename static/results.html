@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MatchDay - World Cup 2026 results</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root { color-scheme: dark; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0e1a;
+      color: #e0e6f0;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    header, .container { max-width: 1240px; margin: 0 auto; }
+
+    header {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #1e3a5f;
+    }
+
+    header h1 { color: #38bdf8; font-size: 24px; }
+    header .subtitle { color: #64748b; font-size: 13px; margin-top: 4px; }
+
+    header a {
+      color: #38bdf8;
+      text-decoration: none;
+      padding: 8px 16px;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    header a:hover { background: #111827; }
+
+    h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin: 32px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #1e3a5f;
+    }
+
+    .status { text-align: center; color: #64748b; padding: 48px; font-style: italic; }
+
+    /* Champion banner */
+    .champion {
+      background: linear-gradient(135deg, #2a2209, #111827 70%);
+      border: 1px solid #a16207;
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .champion .trophy { font-size: 36px; line-height: 1; }
+    .champion .kicker { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #fbbf24; }
+    .champion .name { font-size: 26px; font-weight: 700; color: #fde68a; margin: 2px 0; }
+    .champion .detail { font-size: 13px; color: #94a3b8; }
+
+    /* Bracket: one grid. Row 1 holds the round titles; rows 2-17 are 16 equal
+       slots with no row gap. A match in round n spans 2^n slots, so each card
+       is centered exactly between its two feeders. Rounds use display:
+       contents so their slots are placed directly in this grid. */
+    .bracket {
+      --gap: 36px;
+      --line: #2b4a6f;
+      --gold: #ca8a04;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(170px, 1fr));
+      grid-template-rows: auto repeat(16, 1fr);
+      column-gap: var(--gap);
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .round { display: contents; }
+
+    .round-title {
+      grid-column: var(--col);
+      grid-row: 1;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .slot {
+      grid-column: var(--col);
+      grid-row: var(--row) / span var(--span);
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 4px 0;
+      min-width: 0;
+    }
+
+    .slot > .match { width: 100%; position: relative; }
+
+    /* Outgoing connector: right from the card's middle to the middle of the
+       gap, then half of the vertical join toward the sibling feeder. The two
+       halves meet at the slot boundary, which is the next card's middle. */
+    .slot:not(.last-round)::after {
+      content: '';
+      position: absolute;
+      left: 100%;
+      width: calc(var(--gap) / 2);
+      border: 0 solid var(--line);
+      border-right-width: 2px;
+    }
+
+    .slot.top:not(.last-round)::after { top: calc(50% - 1px); bottom: 0; border-top-width: 2px; }
+    .slot.bottom:not(.last-round)::after { top: 0; bottom: calc(50% - 1px); border-bottom-width: 2px; }
+
+    /* Incoming connector: from the join into the card's left edge. */
+    .slot:not(.first-round) > .match::before {
+      content: '';
+      position: absolute;
+      right: 100%;
+      top: calc(50% - 1px);
+      width: calc(var(--gap) / 2);
+      border-top: 2px solid var(--line);
+    }
+
+    /* Champion's path in gold. */
+    .slot.champ-out::after { border-color: var(--gold); }
+    .slot.champ-in > .match::before { border-top-color: var(--gold); }
+
+    .match {
+      background: #111827;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .match.champ-path { border-color: #a16207; }
+    .match.final { border-color: #ca8a04; box-shadow: 0 0 0 1px #ca8a04 inset; }
+
+    .match-meta {
+      font-size: 10px;
+      color: #64748b;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .team {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 2px 0;
+      color: #94a3b8;
+    }
+
+    .team .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .team .score { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .team .pens { font-size: 11px; color: #64748b; margin-left: 3px; }
+    .team.win { color: #e0e6f0; font-weight: 600; }
+    .team.champ .name { color: #fbbf24; }
+
+    .badge {
+      display: inline-block;
+      margin-top: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 4px;
+      padding: 2px 6px;
+    }
+
+    .badge.aet { background: #1e3a5f; color: #7dd3fc; }
+    .badge.pens { background: #3b1d4a; color: #e9d5ff; }
+
+    .third-place { max-width: 260px; }
+
+    /* Group stage */
+    .groups {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+    }
+
+    .group-card {
+      background: #111827;
+      border: 1px solid #1e3a5f;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .group-card h3 { font-size: 14px; color: #38bdf8; margin-bottom: 8px; }
+
+    .group-row {
+      display: grid;
+      grid-template-columns: 44px 1fr auto 1fr;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 13px;
+      padding: 4px 0;
+      border-top: 1px solid #1a2436;
+      color: #94a3b8;
+    }
+
+    .group-row:first-of-type { border-top: none; }
+    .group-row .date { font-size: 11px; color: #64748b; }
+    .group-row .home { text-align: right; }
+    .group-row .score { font-variant-numeric: tabular-nums; color: #e0e6f0; }
+    .group-row .win { color: #e0e6f0; font-weight: 600; }
+
+    .footnote { font-size: 12px; color: #64748b; margin: 32px 0 8px; line-height: 1.5; }
+
+    @media (max-width: 760px) {
+      body { padding: 16px; }
+      header h1 { font-size: 19px; }
+      header a { padding: 7px 10px; font-size: 12px; }
+      .champion { padding: 14px 16px; }
+      .champion .name { font-size: 22px; }
+
+      /* Stack the rounds, final first, instead of scrolling sideways. No connectors. */
+      .bracket { display: flex; flex-direction: column; gap: 20px; overflow: visible; }
+      .round {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
+        order: var(--mobile-order);
+      }
+      .round-title { grid-column: 1 / -1; grid-row: auto; margin-bottom: 0; }
+      .slot { grid-column: auto; grid-row: auto; padding: 0; }
+      .slot::after, .slot > .match::before { display: none; }
+      .third-place { max-width: none; }
+      .groups { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>World Cup 2026 results</h1>
+    <div class="subtitle">June 11 – July 19, 2026 · 104 matches</div>
+  </div>
+  <a href="/">← Back to chat</a>
+</header>
+
+<div class="container">
+  <div id="content" class="status">Loading results...</div>
+</div>
+
+<script>
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // "2026-06-15" -> "Jun 15", without Date parsing (no time zone shifts).
+  function formatDate(iso) {
+    const [, month, day] = iso.split('-').map(Number);
+    return `${MONTHS[month - 1]} ${day}`;
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function sides(m) {
+    const winner = m.winner === m.home.team ? m.home : m.away;
+    const loser = winner === m.home ? m.away : m.home;
+    return { winner, loser };
+  }
+
+  function matchCard(m, champion) {
+    const card = el('div', m.stage === 'final' ? 'match final' : 'match');
+    const meta = el('div', 'match-meta', `${formatDate(m.date)} · ${m.venue}`);
+    meta.title = `${m.venue}, ${m.city}`;
+    card.appendChild(meta);
+
+    [m.home, m.away].forEach(side => {
+      const row = el('div', 'team');
+      if (m.winner === side.team) row.classList.add('win');
+      if (side.team === champion) row.classList.add('champ');
+      row.appendChild(el('span', 'name', side.team));
+      const score = el('span', 'score', String(side.score));
+      if (m.decided === 'penalties') score.appendChild(el('span', 'pens', `(${side.penalties})`));
+      row.appendChild(score);
+      card.appendChild(row);
+    });
+
+    if (m.decided === 'extra_time') {
+      card.appendChild(el('span', 'badge aet', 'After extra time'));
+    } else if (m.decided === 'penalties') {
+      const { winner, loser } = sides(m);
+      card.appendChild(el('span', 'badge pens', `${m.winner} won ${winner.penalties}-${loser.penalties} on penalties`));
+    }
+    return card;
+  }
+
+  function championBanner(view) {
+    const final = view.rounds[view.rounds.length - 1].matches[0];
+    const { winner, loser } = sides(final);
+    const how = final.decided === 'extra_time' ? ' after extra time'
+      : final.decided === 'penalties' ? ` (${winner.penalties}-${loser.penalties} on penalties)` : '';
+
+    const banner = el('div', 'champion');
+    banner.appendChild(el('div', 'trophy', '🏆'));
+    const text = el('div');
+    text.appendChild(el('div', 'kicker', 'World Cup 2026 champion'));
+    text.appendChild(el('div', 'name', view.champion));
+    text.appendChild(el('div', 'detail',
+      `Beat ${view.runner_up} ${winner.score}-${loser.score}${how} in the final · ${formatDate(final.date)} · ${final.venue}, ${final.city}`));
+    banner.appendChild(text);
+    return banner;
+  }
+
+  function render(view) {
+    const content = document.getElementById('content');
+    content.className = '';
+    content.replaceChildren();
+
+    content.appendChild(championBanner(view));
+
+    content.appendChild(el('h2', null, 'Knockout stage'));
+    // Matches arrive in bracket order: matches 2i and 2i+1 of a round feed
+    // match i of the next round, so match i of round r spans 2^r grid rows.
+    const bracket = el('div', 'bracket');
+    const lastRound = view.rounds.length - 1;
+    view.rounds.forEach((round, r) => {
+      const span = 2 ** r;
+      const column = el('div', 'round');
+      column.style.setProperty('--mobile-order', String(view.rounds.length - r));
+      const title = el('div', 'round-title', round.label);
+      title.style.setProperty('--col', String(r + 1));
+      column.appendChild(title);
+
+      round.matches.forEach((m, i) => {
+        const slot = el('div', `slot ${i % 2 === 0 ? 'top' : 'bottom'}`);
+        if (r === 0) slot.classList.add('first-round');
+        if (r === lastRound) slot.classList.add('last-round');
+        slot.style.setProperty('--col', String(r + 1));
+        slot.style.setProperty('--row', String(2 + i * span));
+        slot.style.setProperty('--span', String(span));
+
+        const card = matchCard(m, view.champion);
+        const championPlayed = m.home.team === view.champion || m.away.team === view.champion;
+        if (championPlayed) {
+          card.classList.add('champ-path');
+          if (r > 0) slot.classList.add('champ-in');
+          if (r < lastRound) slot.classList.add('champ-out');
+        }
+        slot.appendChild(card);
+        column.appendChild(slot);
+      });
+      bracket.appendChild(column);
+    });
+    content.appendChild(bracket);
+
+    if (view.third_place) {
+      content.appendChild(el('h2', null, 'Third-place match'));
+      const third = el('div', 'third-place');
+      third.appendChild(matchCard(view.third_place, view.champion));
+      content.appendChild(third);
+    }
+
+    content.appendChild(el('h2', null, 'Group stage'));
+    const groups = el('div', 'groups');
+    view.groups.forEach(g => {
+      const card = el('section', 'group-card');
+      card.appendChild(el('h3', null, `Group ${g.group}`));
+      g.matches.forEach(m => {
+        const row = el('div', 'group-row');
+        row.title = `${m.venue}, ${m.city}`;
+        row.appendChild(el('span', 'date', formatDate(m.date)));
+        row.appendChild(el('span', m.winner === m.home.team ? 'home win' : 'home', m.home.team));
+        row.appendChild(el('span', 'score', `${m.home.score}-${m.away.score}`));
+        row.appendChild(el('span', m.winner === m.away.team ? 'away win' : 'away', m.away.team));
+        card.appendChild(row);
+      });
+      groups.appendChild(card);
+    });
+    content.appendChild(groups);
+
+    content.appendChild(el('p', 'footnote',
+      'Results from ESPN. Dates are US Eastern. Group tables aren\'t shown here; ask MatchDay in the chat for final standings.'));
+  }
+
+  async function loadResults() {
+    const content = document.getElementById('content');
+    try {
+      const res = await fetch('/api/world-cup-results');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      render(await res.json());
+    } catch (e) {
+      content.className = 'status';
+      content.textContent = 'World Cup results are unavailable right now. Please try again later.';
+    }
+  }
+
+  loadResults();
+</script>
+
+</body>
+</html>

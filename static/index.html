@@ -3,16 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-  <title>MatchDay - World Cup 2026 AI Assistant</title>
+  <title>MatchDay - Your AI football companion</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"
+          integrity="sha512-pmjEJQ7CveksANaAKdCJZMig7eAcCFFzE1b5XnlnxdB/vU3AOStJ5SF7w4tFuqskuU31ETnAaWTYRQOYg2WHKw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js"
+          integrity="sha512-flQmhkXNRQ3iUfvtdCobtpMjCb6kE+zLnTiAulAQJ3WykVfy84JvCMOo6vhwWXHTXjR25h9Zj+LyGFRWKjRoag=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root { color-scheme: dark; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #0a0e1a;
       color: #e0e6f0;
       height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
     }
@@ -37,10 +45,34 @@
       color: #64748b;
     }
 
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-btn {
+      background: none;
+      color: #38bdf8;
+      text-decoration: none;
+      padding: 8px 16px;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .header-btn:hover { background: #0a0e1a; }
+
+    .profile-toggle, .short-label { display: none; }
+
     .app {
       display: flex;
       flex: 1;
       overflow: hidden;
+      position: relative;
     }
 
     .sidebar {
@@ -69,17 +101,31 @@
       border-radius: 8px;
       padding: 8px 12px;
       color: #e0e6f0;
-      font-size: 13px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       outline: none;
     }
 
-    .user-section input:focus {
-      border-color: #38bdf8;
+    .user-section input:focus { border-color: #38bdf8; }
+    .user-section input.invalid { border-color: #f87171; }
+
+    .field-note {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .field-error {
+      font-size: 11px;
+      color: #f87171;
+      margin-top: 6px;
     }
 
     .team-list, .reminder-list {
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       gap: 6px;
     }
 
@@ -89,7 +135,6 @@
       border-radius: 20px;
       padding: 5px 12px;
       font-size: 13px;
-      display: inline-block;
     }
 
     .reminder-item {
@@ -99,6 +144,7 @@
       font-size: 12px;
       color: #94a3b8;
       border-left: 3px solid #38bdf8;
+      align-self: stretch;
     }
 
     .reminder-item strong {
@@ -131,6 +177,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      min-width: 0;
     }
 
     .messages {
@@ -164,12 +211,14 @@
       font-size: 14px;
       line-height: 1.6;
       max-width: 100%;
+      overflow-wrap: anywhere;
     }
 
     .message.user .bubble {
       background: #1e3a5f;
       color: #e0e6f0;
       border-bottom-right-radius: 4px;
+      white-space: pre-wrap;
     }
 
     .message.assistant .bubble {
@@ -182,12 +231,32 @@
     .message.assistant .bubble ul,
     .message.assistant .bubble ol {
       padding-left: 20px;
+      margin: 6px 0;
+    }
+
+    .message.assistant .bubble p + p { margin-top: 8px; }
+    .message.assistant .bubble a { color: #38bdf8; }
+
+    .message.assistant .bubble table {
+      border-collapse: collapse;
+      margin: 8px 0;
+      display: block;
+      overflow-x: auto;
+    }
+
+    .message.assistant .bubble th,
+    .message.assistant .bubble td {
+      border: 1px solid #1e3a5f;
+      padding: 4px 8px;
+      text-align: left;
     }
 
     .message.assistant .bubble.thinking {
-      color: #475569;
+      color: #64748b;
       font-style: italic;
     }
+
+    .message.assistant .bubble.error { color: #fca5a5; }
 
     .input-area {
       padding: 16px 24px;
@@ -199,6 +268,7 @@
 
     .input-area input {
       flex: 1;
+      min-width: 0;
       background: #1e293b;
       border: 1px solid #1e3a5f;
       border-radius: 10px;
@@ -241,15 +311,57 @@
       border-radius: 20px;
       padding: 6px 14px;
       font-size: 12px;
+      font-family: inherit;
       cursor: pointer;
       transition: all 0.2s;
+      white-space: nowrap;
     }
 
     .suggestion:hover { border-color: #38bdf8; color: #38bdf8; }
+    .suggestion:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+
+    @media (max-width: 760px) {
+      header { padding: 10px 16px; }
+      header .logo { font-size: 18px; }
+      header .subtitle { font-size: 11px; }
+      .header-btn { padding: 7px 10px; font-size: 12px; }
+      .profile-toggle { display: inline-block; }
+      .long-label { display: none; }
+      .short-label { display: inline; }
+
+      .sidebar {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: auto;
+        max-height: 75%;
+        z-index: 10;
+        border-right: none;
+        border-bottom: 1px solid #1e3a5f;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+      }
+
+      .sidebar.open { display: flex; }
+
+      .messages { padding: 16px; }
+
+      .suggestions {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 0 16px 10px;
+      }
+
+      .input-area { padding: 10px 16px; }
+
+      /* 16px keeps iOS Safari from zooming into the field on focus. */
+      .input-area input, .user-section input { font-size: 16px; }
+    }
   </style>
 </head>
 <body>
@@ -257,16 +369,24 @@
 <header>
   <div>
     <div class="logo">MatchDay</div>
-    <div class="subtitle">World Cup 2026 AI Assistant</div>
+    <div class="subtitle">Your AI football companion</div>
   </div>
-  <a href="/bracket" style="margin-left: auto; color: #38bdf8; text-decoration: none; padding: 8px 16px; border: 1px solid #1e3a5f; border-radius: 8px; font-size: 13px;">View Bracket →</a>
+  <div class="header-actions">
+    <button class="header-btn profile-toggle" id="profileToggle" aria-expanded="false" aria-controls="sidebar">Profile</button>
+    <a class="header-btn" href="/results">
+      <span class="long-label">World Cup 2026 results →</span>
+      <span class="short-label">WC results →</span>
+    </a>
+  </div>
 </header>
 
 <div class="app">
-  <div class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="user-section">
-      <h3>Your ID</h3>
-      <input type="text" id="userId" value="fan_001" placeholder="Enter your user ID" />
+      <h3><label for="userId">Your guest ID</label></h3>
+      <input type="text" id="userId" autocomplete="off" spellcheck="false" maxlength="40" />
+      <div class="field-error" id="userIdError" hidden>Use 1 to 40 letters, digits, underscores or hyphens.</div>
+      <div class="field-note">No login: anyone who knows this ID can see and change what it follows. It's saved in this browser.</div>
     </div>
 
     <div>
@@ -274,7 +394,7 @@
       <div class="team-list" id="teamList">
         <span class="empty-state">No teams yet</span>
       </div>
-      <button class="refresh-btn" onclick="loadSidebar()">Refresh</button>
+      <button class="refresh-btn" id="refreshBtn">Refresh</button>
     </div>
 
     <div>
@@ -283,126 +403,262 @@
         <span class="empty-state">No reminders set</span>
       </div>
     </div>
-  </div>
+  </aside>
 
-  <div class="chat-area">
-    <div class="messages" id="messages">
+  <main class="chat-area">
+    <div class="messages" id="messages" aria-live="polite">
       <div class="message assistant">
         <span class="label">MatchDay</span>
         <div class="bubble">
-          Hey! I'm MatchDay, your World Cup 2026 AI companion. I can help you track teams, check match schedules, set reminders, and explore host city venues. What would you like to know?
+          <p>Hi! I'm MatchDay, your AI football companion. Here's what I can do right now:</p>
+          <ul>
+            <li><strong>World Cup 2026 recap</strong>: every result, from the group stage to the final, and how any team got on</li>
+            <li><strong>Any football question</strong>: other leagues, clubs, players, transfers and news, answered with live web search</li>
+            <li><strong>Follow teams</strong>: any club or national team, saved to your guest ID</li>
+            <li><strong>Host city guides</strong>: World Cup stadiums, getting there, and what's nearby</li>
+          </ul>
+          <p>Live fixtures, match reminders and predictions for more competitions are coming soon.</p>
         </div>
       </div>
     </div>
 
-    <div class="suggestions">
-      <span class="suggestion" onclick="sendSuggestion(this)">Follow Brazil</span>
-      <span class="suggestion" onclick="sendSuggestion(this)">Upcoming matches this week</span>
-      <span class="suggestion" onclick="sendSuggestion(this)">Fan zone in Miami</span>
-      <span class="suggestion" onclick="sendSuggestion(this)">Remind me before Argentina's next match</span>
-      <span class="suggestion" onclick="sendSuggestion(this)">Group A standings</span>
-      <span class="suggestion" onclick="sendSuggestion(this)">Getting to AT&T Stadium Dallas</span>
+    <div class="suggestions" id="suggestions">
+      <button class="suggestion">Who won the World Cup?</button>
+      <button class="suggestion">How did Brazil do at the World Cup?</button>
+      <button class="suggestion">Argentina vs France head to head</button>
+      <button class="suggestion">How do I get to MetLife Stadium?</button>
+      <button class="suggestion">Who's top of the Premier League?</button>
+      <button class="suggestion">Follow Arsenal</button>
     </div>
 
     <div class="input-area">
       <input
         type="text"
         id="messageInput"
-        placeholder="Ask about teams, matches, venues..."
-        onkeydown="if(event.key==='Enter') sendMessage()"
+        placeholder="Ask anything about football..."
+        aria-label="Message"
+        enterkeyhint="send"
       />
-      <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+      <button class="send-btn" id="sendBtn">Send</button>
     </div>
-  </div>
+  </main>
 </div>
 
 <script>
   const API = '';
+  // Must match USER_ID_PATTERN in main.py.
+  const USER_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+  const USER_ID_KEY = 'matchday_user_id';
+  const COLD_START_MS = 5000;
 
-  function getUserId() {
-    return document.getElementById('userId').value.trim() || 'fan_001';
+  const userIdInput = document.getElementById('userId');
+  const userIdError = document.getElementById('userIdError');
+  const sidebar = document.getElementById('sidebar');
+  const profileToggle = document.getElementById('profileToggle');
+
+  // --- Guest ID ---
+
+  function uuidV4() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    // crypto.randomUUID needs a secure context (HTTPS or localhost). Build the
+    // same UUID v4 from getRandomValues when testing over plain http on a LAN IP.
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
   }
 
-  function addMessage(role, text, thinking = false) {
+  function readStoredId() {
+    try { return localStorage.getItem(USER_ID_KEY); } catch (e) { return null; }
+  }
+
+  function storeId(id) {
+    try { localStorage.setItem(USER_ID_KEY, id); } catch (e) {}
+  }
+
+  let userId = readStoredId();
+  if (!userId || !USER_ID_RE.test(userId)) {
+    userId = 'g_' + uuidV4();  // 38 characters, 122 random bits
+    storeId(userId);
+  }
+  userIdInput.value = userId;
+
+  function userIdFieldValid() {
+    const valid = USER_ID_RE.test(userIdInput.value.trim());
+    userIdInput.classList.toggle('invalid', !valid);
+    userIdError.hidden = valid;
+    return valid;
+  }
+
+  userIdInput.addEventListener('input', userIdFieldValid);
+  userIdInput.addEventListener('change', () => {
+    if (!userIdFieldValid()) return;
+    userId = userIdInput.value.trim();
+    storeId(userId);
+    loadSidebar();
+  });
+
+  // --- Mobile profile panel ---
+
+  function setProfileOpen(open) {
+    sidebar.classList.toggle('open', open);
+    profileToggle.setAttribute('aria-expanded', String(open));
+  }
+
+  profileToggle.addEventListener('click', () => setProfileOpen(!sidebar.classList.contains('open')));
+
+  // --- Messages ---
+
+  if (window.DOMPurify) {
+    DOMPurify.addHook('afterSanitizeAttributes', node => {
+      if (node.tagName === 'A') {
+        node.setAttribute('target', '_blank');
+        node.setAttribute('rel', 'noopener noreferrer');
+      }
+    });
+  }
+
+  function renderReply(bubble, text) {
+    if (window.marked && window.DOMPurify) {
+      bubble.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    } else {
+      // A CDN script failed to load (or failed its integrity check): show plain text.
+      bubble.textContent = text;
+    }
+  }
+
+  function addMessage(role, text) {
     const messages = document.getElementById('messages');
     const div = document.createElement('div');
     div.className = `message ${role}`;
-    div.innerHTML = `
-      <span class="label">${role === 'user' ? 'You' : 'MatchDay'}</span>
-      <div class="bubble ${thinking ? 'thinking' : ''}">${text}</div>
-    `;
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = role === 'user' ? 'You' : 'MatchDay';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    div.append(label, bubble);
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
-    return div;
+    return bubble;
   }
 
-  async function sendMessage() {
+  function setBusy(busy) {
+    document.getElementById('sendBtn').disabled = busy;
+    document.querySelectorAll('.suggestion').forEach(b => { b.disabled = busy; });
+  }
+
+  async function sendMessage(text) {
     const input = document.getElementById('messageInput');
-    const btn = document.getElementById('sendBtn');
-    const message = input.value.trim();
+    const message = (text ?? input.value).trim();
     if (!message) return;
 
+    if (!userIdFieldValid()) {
+      setProfileOpen(true);
+      userIdInput.focus();
+      return;
+    }
+
     input.value = '';
-    btn.disabled = true;
+    setProfileOpen(false);
+    setBusy(true);
     addMessage('user', message);
 
-    const thinking = addMessage('assistant', 'Thinking...', true);
+    const bubble = addMessage('assistant', 'Thinking...');
+    bubble.classList.add('thinking');
+    const slowTimer = setTimeout(() => {
+      bubble.textContent = 'Still working... If MatchDay has been idle, the first reply can take up to 20 seconds while the server wakes up.';
+    }, COLD_START_MS);
 
     try {
       const res = await fetch(`${API}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: getUserId(), message })
+        body: JSON.stringify({ user_id: userId, message })
       });
-      const data = await res.json();
-      thinking.querySelector('.bubble').className = 'bubble';
-      thinking.querySelector('.bubble').innerHTML = marked.parse(data.response);
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+
+      bubble.classList.remove('thinking');
+      if (res.ok && data && typeof data.response === 'string') {
+        renderReply(bubble, data.response);
+      } else if (res.status === 422) {
+        bubble.classList.add('error');
+        bubble.textContent = "Your guest ID isn't valid. Open Profile and use 1 to 40 letters, digits, underscores or hyphens.";
+      } else {
+        bubble.classList.add('error');
+        bubble.textContent = `Something went wrong (HTTP ${res.status}). Please try again.`;
+      }
     } catch (e) {
-      thinking.querySelector('.bubble').textContent = 'Something went wrong. Please try again.';
+      bubble.classList.remove('thinking');
+      bubble.classList.add('error');
+      bubble.textContent = "Couldn't reach MatchDay. Check your connection and try again.";
+    } finally {
+      clearTimeout(slowTimer);
     }
 
-    btn.disabled = false;
+    document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    setBusy(false);
     input.focus();
     loadSidebar();
   }
 
-  function sendSuggestion(el) {
-    document.getElementById('messageInput').value = el.textContent;
-    sendMessage();
+  document.getElementById('sendBtn').addEventListener('click', () => sendMessage());
+  document.getElementById('messageInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !document.getElementById('sendBtn').disabled) sendMessage();
+  });
+  document.querySelectorAll('.suggestion').forEach(b => {
+    b.addEventListener('click', () => sendMessage(b.textContent));
+  });
+
+  // --- Sidebar ---
+
+  function renderList(container, items, emptyText, renderItem) {
+    container.replaceChildren();
+    if (!items.length) {
+      const empty = document.createElement('span');
+      empty.className = 'empty-state';
+      empty.textContent = emptyText;
+      container.appendChild(empty);
+      return;
+    }
+    items.forEach(item => container.appendChild(renderItem(item)));
   }
 
   async function loadSidebar() {
-    const userId = getUserId();
+    const id = encodeURIComponent(userId);
 
     try {
-      const teamsRes = await fetch(`${API}/user/${userId}/teams`);
-      const teamsData = await teamsRes.json();
-      const teamList = document.getElementById('teamList');
-      const teams = teamsData.followed_teams || [];
-      teamList.innerHTML = teams.length
-        ? teams.map(t => `<span class="team-pill">${t}</span>`).join('')
-        : '<span class="empty-state">No teams yet</span>';
+      const res = await fetch(`${API}/user/${id}/teams`);
+      const data = res.ok ? await res.json() : {};
+      renderList(document.getElementById('teamList'), data.followed_teams || [], 'No teams yet', team => {
+        const pill = document.createElement('span');
+        pill.className = 'team-pill';
+        pill.textContent = team;
+        return pill;
+      });
     } catch (e) {}
 
     try {
-      const remRes = await fetch(`${API}/user/${userId}/reminders`);
-      const remData = await remRes.json();
-      const remList = document.getElementById('reminderList');
-      const reminders = remData.reminders || [];
+      const res = await fetch(`${API}/user/${id}/reminders`);
+      const data = res.ok ? await res.json() : {};
+      const reminders = data.reminders || [];
       const unique = reminders.filter((r, i, arr) =>
         arr.findIndex(x => x.team === r.team && x.match_date === r.match_date) === i
       );
-      remList.innerHTML = unique.length
-        ? unique.map(r => `
-            <div class="reminder-item">
-              <strong>${r.team}</strong>
-              ${r.match_date} · ${r.minutes_before}min before
-            </div>`).join('')
-        : '<span class="empty-state">No reminders set</span>';
+      renderList(document.getElementById('reminderList'), unique, 'No reminders set', r => {
+        const item = document.createElement('div');
+        item.className = 'reminder-item';
+        const team = document.createElement('strong');
+        team.textContent = r.team;
+        item.append(team, `${r.match_date} · ${r.minutes_before}min before`);
+        return item;
+      });
     } catch (e) {}
   }
 
-  document.getElementById('userId').addEventListener('change', loadSidebar);
+  document.getElementById('refreshBtn').addEventListener('click', loadSidebar);
   loadSidebar();
 </script>
 
