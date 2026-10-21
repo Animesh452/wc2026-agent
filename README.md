@@ -147,7 +147,7 @@ gcloud run deploy matchday \
   --allow-unauthenticated \
   --set-secrets="MONGODB_URI=MONGODB_URI:latest,GCP_PROJECT_ID=GCP_PROJECT_ID:latest,DISCOVERY_ENGINE_LOCATION=DISCOVERY_ENGINE_LOCATION:latest,DISCOVERY_ENGINE_ID=DISCOVERY_ENGINE_ID:latest,BREVO_SMTP_LOGIN=BREVO_SMTP_LOGIN:latest,BREVO_SMTP_KEY=BREVO_SMTP_KEY:latest,BREVO_SENDER_EMAIL=BREVO_SENDER_EMAIL:latest" \
   --min-instances 0 \
-  --cpu-throttling
+  --cpu-throttling \
   --timeout 300 \
   --memory 1Gi
 ```
