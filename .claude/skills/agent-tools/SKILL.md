@@ -1,6 +1,6 @@
 ---
 name: agent-tools
-description: How to add or modify tools in MatchDay's Gemini tool-calling agent, covering tool implementations in tools/, FunctionDeclarations and the SYNC_TOOLS/ASYNC_TOOLS registries in agent.py, and system instruction updates. Use when adding a new agent capability, changing a tool's parameters, or wiring a new data source into the agent.
+description: How to add or modify tools in MatchDay's Gemini tool-calling agent, covering tool implementations in tools/, FunctionDeclarations and the SYNC_TOOLS/ASYNC_NO_SESSION_TOOLS/ASYNC_TOOLS registries in agent.py, and system instruction updates. Use when adding a new agent capability, changing a tool's parameters, or wiring a new data source into the agent.
 ---
 
 # Agent tools
@@ -14,15 +14,31 @@ Every new or changed tool must satisfy all of these before it's done:
 - [ ] Exactly one `FunctionDeclaration` with that name in `TOOL_DECLARATIONS`.
       Duplicate names make Gemini reject every request with 400
       "Duplicate function declaration".
-- [ ] Registered in `SYNC_TOOLS` or `ASYNC_TOOLS`
+- [ ] Registered in exactly one of `SYNC_TOOLS`, `ASYNC_NO_SESSION_TOOLS`, or
+      `ASYNC_TOOLS` (see "Which registry" below).
+      `tests/unit/test_agent_registry.py` checks this.
+- [ ] Every Gemini call inside the tool goes through `generate_with_retry()`
+      from `gemini_client.py`
 - [ ] Every MCP call checked with `mcp_error()`
 - [ ] Errors returned as strings, never raised
 - [ ] Logging format preserved
 - [ ] Agent eval cases added (see Testing)
 
+## Which registry
+
+| Registry | Tool signature | How the loop calls it | Use for |
+|---|---|---|---|
+| `SYNC_TOOLS` | `def tool(**args)` | `await asyncio.to_thread(tool, **args)` | Pure functions and blocking HTTP clients (ESPN, Discovery Engine, the snapshot) |
+| `ASYNC_NO_SESSION_TOOLS` | `async def tool(**args)` | `await tool(**args)` | Async network calls that don't touch MongoDB (Gemini via `generate_with_retry`) |
+| `ASYNC_TOOLS` | `async def tool(session, **args)` | `await tool(mcp_session, **args)`, only if MCP is connected | Anything that reads or writes MongoDB through MCP |
+
+Sync tools run in a worker thread, so they must not share mutable state
+unsafely. Don't put a coroutine function in `SYNC_TOOLS`: `to_thread` would
+return an un-awaited coroutine instead of a result.
+
 ## Sync tool template
 
-For pure functions and plain HTTP calls (ESPN, Discovery Engine):
+For pure functions and plain blocking HTTP calls (ESPN, Discovery Engine):
 
 ```python
 def get_something(team: str, days: int = 14):
@@ -35,6 +51,27 @@ def get_something(team: str, days: int = 14):
         print(f"  get_something error: {e}")
         return f"Could not fetch something: {e}"
 ```
+
+## Async tool template (no MCP session)
+
+For async network calls that don't need MongoDB, such as Gemini calls:
+
+```python
+from gemini_client import generate_with_retry
+
+async def ask_gemini_something(query: str):
+    """One-line summary of what this returns."""
+    try:
+        response = await generate_with_retry(query, SOME_CONFIG)
+        return " ".join(p.text for p in response.candidates[0].content.parts if p.text)
+    except Exception as e:
+        print(f"  ask_gemini_something error: {e}")
+        return f"Could not do something: {e}"
+```
+
+Never call `client.models.generate_content()` (sync) or the async client
+directly from a tool: the sync call blocks the server, and both skip the
+429/500/503 retry.
 
 ## Async MCP tool template
 

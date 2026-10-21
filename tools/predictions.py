@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 from datetime import datetime
@@ -156,10 +157,11 @@ async def score_predictions(session, user_id: str):
     updated_count = 0
     total_points = 0
     breakdown = []
-    
+    failed = []
+
     for pred in pending:
-        # Try ESPN first
-        match_result = fetch_match_result(pred["match_id"])
+        # Try ESPN first (blocking HTTP, so run it in a worker thread)
+        match_result = await asyncio.to_thread(fetch_match_result, pred["match_id"])
         
         if match_result:
             actual_home = match_result.get("home", {}).get("score", 0)
@@ -187,25 +189,33 @@ async def score_predictions(session, user_id: str):
                 "points": points
             }}
         })
-        
+        match_name = f"{pred['home_team']} vs {pred['away_team']}"
+
+        # Only count points once the score is actually saved.
+        err = mcp_error(update_result)
+        if err:
+            print(f"  score_predictions: failed to update {pred['match_id']}: {err}")
+            failed.append(f"{match_name}: {err}")
+            continue
+
         updated_count += 1
         total_points += points
         breakdown.append({
-            "match": f"{pred['home_team']} vs {pred['away_team']}",
+            "match": match_name,
             "predicted": f"{pred['predicted_home_score']}-{pred['predicted_away_score']}",
             "actual": f"{actual_home}-{actual_away}",
             "result": status,
             "points": points
         })
-        if mcp_error(update_result):
-            print(f"  score_predictions: failed to update {pred['match_id']}: {mcp_error(update_result)}")
-            continue
-    
-    return {
+
+    result = {
         "updated": updated_count,
         "total_points_earned": total_points,
         "breakdown": breakdown
     }
+    if failed:
+        result["failed"] = failed
+    return result
 
 
 async def get_leaderboard(session, limit: int = 10):

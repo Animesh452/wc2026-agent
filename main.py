@@ -27,7 +27,6 @@ async def lifespan(app: FastAPI):
     env = os.environ.copy()
     mongodb_uri = os.getenv("MONGODB_URI", "").strip()
     print(f"MongoDB URI present: {bool(mongodb_uri)}")
-    print(f"MongoDB URI preview: {mongodb_uri[:30]}...{mongodb_uri[-10:]}")
     
     # Force pass to both variables the server checks for
     env["MDB_MCP_CONNECTION_STRING"] = mongodb_uri

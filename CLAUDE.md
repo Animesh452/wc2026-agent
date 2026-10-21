@@ -35,7 +35,8 @@ currently doesn't fire reliably.
 
 matchday/
 ├── main.py # FastAPI app, lifespan, routes
-├── agent.py # Gemini tool-calling loop, tool declarations
+├── agent.py # Gemini tool-calling loop, tool declarations, registries
+├── gemini_client.py # Shared Gemini client, MODEL, generate_with_retry()
 ├── prompts/ # System instruction template (Markdown)
 ├── tools/ # Tool implementations
 ├── data/ # Static snapshots read at runtime (World Cup 2026 results)
@@ -101,13 +102,31 @@ Follow the `agent-tools` skill in `.claude/skills/agent-tools/SKILL.md`.
 
 ### Gemini calls
 
-- All model calls in the agent loop go through `generate_with_retry()` in
-  `agent.py`, never `client.aio.models.generate_content()` directly. It
-  retries 429/500/503 with exponential backoff and jitter.
+- All model calls, in the agent loop and inside tools (`web_search`,
+  `head_to_head`), go through `generate_with_retry()` in `gemini_client.py`,
+  never `client.aio.models.generate_content()` or the sync client directly. It
+  retries 429/500/503 with exponential backoff and jitter and uses the model
+  from `GEMINI_MODEL`. It lives outside `agent.py` so tools can import it
+  without a circular import.
 - `run_agent` records the history length at the start of each turn and rolls
   back on failure. Do not remove this: a half-finished turn left in history
   (e.g. a function call with no function response) makes Gemini reject every
   later message from that user.
+
+### Tool registries and blocking I/O
+
+The agent loop never blocks the event loop on a tool call:
+
+- `SYNC_TOOLS` (blocking HTTP clients, pure functions) run via
+  `asyncio.to_thread`. The tools themselves stay synchronous.
+- `ASYNC_NO_SESSION_TOOLS` (Gemini calls) are awaited without the MCP session,
+  so they work even if MongoDB is down.
+- `ASYNC_TOOLS` take the MCP session as their first argument.
+
+Blocking calls inside async tools get the same treatment, e.g.
+`fetch_match_result` in `score_predictions` runs via `asyncio.to_thread`.
+`tests/unit/test_agent_registry.py` checks every declared tool is in exactly
+one registry with the right kind of function, and that dispatch works.
 
 ### System instruction
 

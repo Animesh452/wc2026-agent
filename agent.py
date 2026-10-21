@@ -1,6 +1,6 @@
-import asyncio, random
-from google import genai
-from google.genai import types, errors
+import asyncio
+from google.genai import types
+from gemini_client import generate_with_retry
 from tools.espn import (
     get_upcoming_matches, get_recent_results,
     get_group_standings, get_team_info, get_team_schedule
@@ -20,7 +20,7 @@ from tools.world_cup import get_world_cup_results, STAGE_FILTERS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 from pathlib import Path
-import os, json
+import json
 
 load_dotenv()
 
@@ -39,30 +39,6 @@ def build_system_instruction(user_id: str) -> str:
         .replace("{{today}}", today)
         .replace("{{user_id}}", user_id)
     )
-
-client = genai.Client(
-    vertexai=True,
-    project=os.getenv("GCP_PROJECT_ID"),
-    location="global"
-)
-
-
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
-RETRYABLE_CODES = {429, 500, 503}
-
-
-async def generate_with_retry(contents, config, max_attempts=4):
-    for attempt in range(1, max_attempts + 1):
-        try:
-            return await client.aio.models.generate_content(
-                model=MODEL, contents=contents, config=config
-            )
-        except errors.APIError as e:
-            if e.code not in RETRYABLE_CODES or attempt == max_attempts:
-                raise
-            delay = (2 ** (attempt - 1)) + random.uniform(0, 1)
-            print(f"  Gemini {e.code}, retrying in {delay:.1f}s (attempt {attempt}/{max_attempts})")
-            await asyncio.sleep(delay)
 
 
 TOOL_DECLARATIONS = [
@@ -339,11 +315,16 @@ SYNC_TOOLS = {
     "get_team_info": get_team_info,
     "search_venue_info": search_venue_info,
     "get_team_schedule": get_team_schedule,
-    "web_search": web_search,
-    "head_to_head": head_to_head,
     "get_world_cup_results": get_world_cup_results,
 }
 
+# Async tools that don't need the MCP session (e.g. Gemini calls).
+ASYNC_NO_SESSION_TOOLS = {
+    "web_search": web_search,
+    "head_to_head": head_to_head,
+}
+
+# Async tools that take the MCP session as their first argument.
 ASYNC_TOOLS = {
     "follow_team": follow_team,
     "get_followed_teams": get_followed_teams,
@@ -402,7 +383,11 @@ async def run_agent(user_message: str, mcp_session=None, user_id: str = "default
                 print(f"  → calling {fc.name}({args})")
 
                 if fc.name in SYNC_TOOLS:
-                    result = SYNC_TOOLS[fc.name](**args)
+                    # Sync tools do blocking network I/O (ESPN, Discovery Engine);
+                    # run them in a worker thread so they don't block the server.
+                    result = await asyncio.to_thread(SYNC_TOOLS[fc.name], **args)
+                elif fc.name in ASYNC_NO_SESSION_TOOLS:
+                    result = await ASYNC_NO_SESSION_TOOLS[fc.name](**args)
                 elif fc.name in ASYNC_TOOLS and mcp_session:
                     result = await ASYNC_TOOLS[fc.name](mcp_session, **args)
                 else:
