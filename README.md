@@ -4,7 +4,20 @@
 
 **Live demo:** [matchday-901040990547.us-central1.run.app](https://matchday-901040990547.us-central1.run.app/) · **World Cup 2026 results page:** [/results](https://matchday-901040990547.us-central1.run.app/results)
 
-<!-- Screenshots: chat on desktop, the /results bracket, and the chat on a phone. -->
+**MatchDay chat**
+
+![MatchDay chat, part 1](docs/images/chat1.png)
+![MatchDay chat, part 2](docs/images/chat2.png)
+
+**MatchDay Results Bracket**
+
+![World Cup 2026 results bracket](docs/images/results.png)
+
+**MatchDay on mobile**
+
+<p align="center">
+  <img src="docs/images/mobile.jpeg" alt="MatchDay on mobile" width="300">
+</p>
 
 Originally built for the **Google Cloud Rapid Agent Hackathon** (MongoDB partner track) as a World Cup 2026 assistant, now a general football companion.
 
